@@ -37,10 +37,16 @@ class Warehouse3DVisualizer:
         Args:
             warehouse_config: Warehouse configuration model
         """
+        if not warehouse_config or not warehouse_config.dimensions:
+            raise ValueError("Valid warehouse_config with dimensions is required")
+        
         self.config = warehouse_config
         self.warehouse_length = warehouse_config.warehouse_length
-        self.warehouse_width = warehouse_config.dimensions.width
-        self.warehouse_height = warehouse_config.dimensions.height
+        self.warehouse_width = getattr(warehouse_config.dimensions, 'width', 0)
+        self.warehouse_height = getattr(warehouse_config.dimensions, 'height', 0)
+        
+        if self.warehouse_width <= 0 or self.warehouse_height <= 0:
+            raise ValueError("Warehouse dimensions must be positive values")
         
         # Zone colors for product visualization
         self.zone_colors = {
@@ -387,19 +393,19 @@ class Warehouse3DVisualizer:
             hoverinfo='name'
         ))
     
-    def _extract_zone_key(self, zone) -> str:
+    def _extract_zone_key(self, zone) -> Optional[str]:
         """
         Extract zone key from ZoneType enum or string.
         
         Args:
-            zone: ZoneType enum or string
+            zone: ZoneType enum, string, or None
             
         Returns:
-            Zone key as string
+            Zone key as string, or None if zone is invalid/falsy
         """
-        if zone:
-            return zone.value if hasattr(zone, 'value') else str(zone)
-        return None
+        if not zone:
+            return None
+        return zone.value if hasattr(zone, 'value') else str(zone)
     
     def _add_products(
         self,

@@ -377,19 +377,22 @@ class WarehouseAllocator:
         Returns:
             List of Product instances
         """
+        # Invalid zone values that should be treated as None
+        INVALID_ZONE_VALUES = ["UNALLOCATED", None, ""]
+        
         products = []
         
         for _, row in df.iterrows():
             # Handle zone conversion safely (skip UNALLOCATED or invalid zones)
             predicted_zone = None
-            if "predicted_zone" in row and row["predicted_zone"] not in ["UNALLOCATED", None, ""]:
+            if "predicted_zone" in row and row["predicted_zone"] not in INVALID_ZONE_VALUES:
                 try:
                     predicted_zone = ZoneType(row["predicted_zone"])
                 except (ValueError, KeyError):
                     predicted_zone = None
             
             final_zone = None
-            if "final_zone" in row and row["final_zone"] not in ["UNALLOCATED", None, ""]:
+            if "final_zone" in row and row["final_zone"] not in INVALID_ZONE_VALUES:
                 try:
                     final_zone = ZoneType(row["final_zone"])
                 except (ValueError, KeyError):
