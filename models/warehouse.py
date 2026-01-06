@@ -53,7 +53,9 @@ class Dimensions3D(BaseModel):
     def volume(self) -> float:
         """Calculate volume in cubic meters"""
         if self.length:
-            return self.width * self.depth * self.height * self.length
+            # For rectangular objects: length * width * height
+            return self.length * self.width * self.height
+        # For simple box: width * depth * height
         return self.width * self.depth * self.height
 
     @computed_field
@@ -61,8 +63,14 @@ class Dimensions3D(BaseModel):
     def floor_area(self) -> float:
         """Calculate floor area"""
         if self.length:
-            return self.width * self.length
+            return self.length * self.width
         return self.width * self.depth
+    
+    @computed_field
+    @property
+    def effective_length(self) -> float:
+        """Get effective length dimension (length or depth)"""
+        return self.length if self.length else self.depth
 
 
 class Shelf(BaseModel):
@@ -181,6 +189,11 @@ class WarehouseConfig(BaseModel):
         if v.width < 10.0 or (v.length and v.length < 10.0):
             raise ValueError("Warehouse width and length must be at least 10.0m")
         return v
+    
+    @property
+    def warehouse_length(self) -> float:
+        """Get warehouse effective length (convenience method)"""
+        return self.dimensions.effective_length
 
     @computed_field
     @property

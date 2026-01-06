@@ -311,8 +311,11 @@ class WarehouseAllocator:
             if not allocated:
                 allocations.append("UNALLOCATED")
             
-            # Generate shelf assignment
-            shelves.append(f"Shelf-{np.random.randint(1, 1000000)}")  # Support 1M+ shelves
+            # Generate unique shelf assignment using index
+            item_id = row.get("item_id", f"ITEM{len(shelves)+1}")
+            zone_letter = zone if allocated and zone != "UNALLOCATED" else "X"
+            shelf_id = f"{zone_letter}-SHELF-{len(shelves)+1:06d}-{item_id}"
+            shelves.append(shelf_id)
             
             # Calculate restock date
             if row.get("daily_demand", 0) > 0:
