@@ -290,7 +290,7 @@ class Warehouse3DVisualizer:
                     size=3,
                     color=zone_color,
                     opacity=0.7,
-                    symbol='cube'
+                    symbol='square'
                 ),
                 name=f'Products Zone {zone}',
                 text=[f'{p.item_id}: {p.description}' for p in zone_prods],
