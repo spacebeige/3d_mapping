@@ -126,7 +126,8 @@ class WarehouseGenerator:
         
         # Generate aisles
         for i in range(num_aisles):
-            aisle_x = rack_bay_width * 2 * i + rack_bay_width + aisle_width * i
+            # Calculate aisle position: racks on left + aisle spacing
+            aisle_x = rack_bay_width + (rack_bay_width + aisle_width) * i
             
             aisle = Aisle(
                 id=f"aisle_{i+1}",
@@ -139,8 +140,10 @@ class WarehouseGenerator:
             # Generate racks on both sides of aisle
             for side, side_name in [(0, "left"), (1, "right")]:
                 if side == 0:
-                    rack_x = aisle_x - rack_bay_width - rack_depth
+                    # Left rack: before aisle, but ensure it's >= 0
+                    rack_x = max(0, aisle_x - rack_depth)
                 else:
+                    # Right rack: after aisle
                     rack_x = aisle_x + aisle_width
                 
                 # Assign zones (distribute across racks)
@@ -215,7 +218,8 @@ class WarehouseGenerator:
         sample_rate = max(1, num_aisles // 50)  # Max 50 aisles for visualization
         
         for i in range(0, num_aisles, sample_rate):
-            aisle_x = rack_bay_width * 2 * i + rack_bay_width + aisle_width * i
+            # Calculate aisle position: racks on left + aisle spacing
+            aisle_x = rack_bay_width + (rack_bay_width + aisle_width) * i
             
             aisle = Aisle(
                 id=f"aisle_{i+1}",
@@ -228,8 +232,10 @@ class WarehouseGenerator:
             # Sample racks
             for side, side_name in [(0, "left"), (1, "right")]:
                 if side == 0:
-                    rack_x = aisle_x - rack_bay_width - rack_depth
+                    # Left rack: before aisle, but ensure it's >= 0
+                    rack_x = max(0, aisle_x - rack_depth)
                 else:
+                    # Right rack: after aisle
                     rack_x = aisle_x + aisle_width
                 
                 zone_idx = (i * 2 + side) % 4
@@ -294,12 +300,24 @@ class WarehouseGenerator:
         Returns:
             Dictionary with capacity estimates
         """
-        total_rack_width = width - (num_aisles * aisle_width)
-        rack_bay_width = total_rack_width / (num_aisles * 2) if num_aisles > 0 else width / 2
+        # Calculate total aisle space
+        total_aisle_space = num_aisles * aisle_width
+        
+        # Ensure we have space for aisles
+        if total_aisle_space >= width * 0.9:  # Leave at least 10% for racks
+            # Adjust assumption: aisles take less space in very large warehouses
+            effective_aisle_width = (width * 0.4) / num_aisles  # Use 40% for aisles
+            total_aisle_space = num_aisles * effective_aisle_width
+        
+        # Calculate rack space
+        total_rack_space = width - total_aisle_space
+        
+        # Each aisle has 2 racks (one on each side)
+        total_racks = num_aisles * 2
+        rack_bay_width = total_rack_space / total_racks if total_racks > 0 else 1.0
         
         # Calculate rack volume
-        single_rack_volume = rack_bay_width * rack_depth * height * length
-        total_racks = num_aisles * 2
+        single_rack_volume = max(0, rack_bay_width * rack_depth * height * length)
         total_rack_volume = single_rack_volume * total_racks
         
         # Estimate usable space (accounting for structure)
@@ -307,7 +325,7 @@ class WarehouseGenerator:
         usable_volume = total_rack_volume * usable_ratio
         
         # Estimate shelves
-        levels_per_rack = int(height / 1.5)
+        levels_per_rack = max(1, int(height / 1.5))
         shelves_per_level = 15  # Average
         total_shelves = total_racks * levels_per_rack * shelves_per_level
         
