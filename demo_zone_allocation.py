@@ -8,6 +8,8 @@ low-turnover items to Zone D (far back).
 from main import WarehouseDigitalTwin, generate_sample_data
 import pandas as pd
 import numpy as np
+import os
+import tempfile
 
 def demo_zone_allocation():
     """Demonstrate zone-based allocation with clear examples."""
@@ -146,8 +148,13 @@ def demo_zone_allocation():
     print("   • Exit path (Red diamond): Main warehouse exit")
     
     print("\n💾 Saving visualization...")
-    fig.write_html("/tmp/warehouse_zone_allocation_demo.html")
-    print("   Saved to: /tmp/warehouse_zone_allocation_demo.html")
+    
+    # Use tempfile for cross-platform compatibility
+    output_dir = tempfile.gettempdir()
+    output_path = os.path.join(output_dir, "warehouse_zone_allocation_demo.html")
+    
+    fig.write_html(output_path)
+    print(f"   Saved to: {output_path}")
     
     print("\n" + "=" * 70)
     print("✅ DEMO COMPLETE!")

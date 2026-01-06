@@ -7,7 +7,7 @@ racks, aisles, and entry/exit paths.
 
 import plotly.graph_objects as go
 import numpy as np
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict
 from models.warehouse import WarehouseConfig, Product, ZoneType, Position3D
 
 
@@ -21,6 +21,14 @@ class Warehouse3DVisualizer:
     - Entry and exit path highlighting
     - Adaptive sizing based on warehouse dimensions
     """
+    
+    # Zone descriptions for consistency
+    ZONE_DESCRIPTIONS = {
+        'A': 'High-Value, High-Turnover',
+        'B': 'Medium-Value',
+        'C': 'Bulky Items',
+        'D': 'Long-Term Storage'
+    }
     
     def __init__(self, warehouse_config: WarehouseConfig):
         """
@@ -206,6 +214,8 @@ class Warehouse3DVisualizer:
             zone_center_y = (prev_y + y_pos) / 2
             zone_center_x = self.warehouse_width / 2
             
+            zone_desc = self.ZONE_DESCRIPTIONS.get(zone, '')
+            
             fig.add_trace(go.Scatter3d(
                 x=[zone_center_x],
                 y=[zone_center_y],
@@ -216,12 +226,7 @@ class Warehouse3DVisualizer:
                 name=f'Zone {zone}' if i == 0 else '',
                 showlegend=False,
                 hoverinfo='text',
-                hovertext=f'Zone {zone}: ' + {
-                    'A': 'High-Value, High-Turnover',
-                    'B': 'Medium-Value',
-                    'C': 'Bulky Items',
-                    'D': 'Long-Term Storage'
-                }.get(zone, '')
+                hovertext=f'Zone {zone}: {zone_desc}'
             ))
             
             prev_y = y_pos
@@ -382,6 +387,20 @@ class Warehouse3DVisualizer:
             hoverinfo='name'
         ))
     
+    def _extract_zone_key(self, zone) -> str:
+        """
+        Extract zone key from ZoneType enum or string.
+        
+        Args:
+            zone: ZoneType enum or string
+            
+        Returns:
+            Zone key as string
+        """
+        if zone:
+            return zone.value if hasattr(zone, 'value') else str(zone)
+        return None
+    
     def _add_products(
         self,
         fig: go.Figure,
@@ -391,7 +410,7 @@ class Warehouse3DVisualizer:
         """
         Add product markers to the visualization.
         
-        Uses valid Plotly Scatter3d symbols: 'circle', 'square', 'diamond', etc.
+        Uses valid Plotly Scatter3d symbols: 'circle', 'square', 'diamond', 'cross'.
         """
         # Sample products if too many
         display_products = products[:max_display] if len(products) > max_display else products
@@ -402,8 +421,9 @@ class Warehouse3DVisualizer:
         
         for product in display_products:
             zone = product.final_zone or product.predicted_zone
-            if zone:
-                zone_key = zone.value if hasattr(zone, 'value') else str(zone)
+            zone_key = self._extract_zone_key(zone)
+            
+            if zone_key:
                 if zone_key not in products_by_zone:
                     products_by_zone[zone_key] = []
                 products_by_zone[zone_key].append(product)
@@ -427,14 +447,14 @@ class Warehouse3DVisualizer:
             # Get zone color
             color = self.zone_colors.get(zone, '#9e9e9e')
             
-            # Use valid Plotly symbols - 'square' is valid for Scatter3d
+            # Use valid Plotly symbols
             fig.add_trace(go.Scatter3d(
                 x=x_coords,
                 y=y_coords,
                 z=z_coords,
                 mode='markers',
                 marker=dict(
-                    symbol='square',  # Valid symbol: square, circle, diamond, cross, x
+                    symbol='square',  # Valid symbols: square, circle, diamond, cross
                     size=4,
                     color=color,
                     opacity=0.7,
