@@ -380,6 +380,21 @@ class WarehouseAllocator:
         products = []
         
         for _, row in df.iterrows():
+            # Handle zone conversion safely (skip UNALLOCATED or invalid zones)
+            predicted_zone = None
+            if "predicted_zone" in row and row["predicted_zone"] not in ["UNALLOCATED", None, ""]:
+                try:
+                    predicted_zone = ZoneType(row["predicted_zone"])
+                except (ValueError, KeyError):
+                    predicted_zone = None
+            
+            final_zone = None
+            if "final_zone" in row and row["final_zone"] not in ["UNALLOCATED", None, ""]:
+                try:
+                    final_zone = ZoneType(row["final_zone"])
+                except (ValueError, KeyError):
+                    final_zone = None
+            
             product = Product(
                 item_id=str(row.get("item_id", "")),
                 description=str(row.get("description", "")),
@@ -390,8 +405,8 @@ class WarehouseAllocator:
                 holding_cost_per_unit_day=float(row.get("holding_cost_per_unit_day", 0)),
                 turnover_ratio=float(row.get("turnover_ratio", 1)),
                 size_score=float(row.get("size_score", 1)),
-                predicted_zone=ZoneType(row["predicted_zone"]) if "predicted_zone" in row else None,
-                final_zone=ZoneType(row["final_zone"]) if "final_zone" in row else None,
+                predicted_zone=predicted_zone,
+                final_zone=final_zone,
                 shelf=str(row.get("shelf", "")),
                 restock_date=str(row.get("restock_date", "")),
                 discount_date=str(row.get("discount_date", ""))
