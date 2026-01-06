@@ -84,6 +84,9 @@ class Warehouse3DVisualizer:
         # Add warehouse structure
         self._add_warehouse_structure(fig)
         
+        # Add zone dividers to show A, B, C, D zones
+        self._add_zone_dividers(fig)
+        
         # Add racks/aisles
         self._add_racks_and_aisles(fig)
         
@@ -164,6 +167,64 @@ class Warehouse3DVisualizer:
                 showlegend=False,
                 hoverinfo='name'
             ))
+    
+    def _add_zone_dividers(self, fig: go.Figure):
+        """Add visual dividers to show warehouse zones A, B, C, D."""
+        # Zone boundaries based on length
+        zone_boundaries = {
+            "A": 0.30,   # 0-30% = Zone A
+            "B": 0.60,   # 30-60% = Zone B
+            "C": 0.80,   # 60-80% = Zone C
+            "D": 1.00    # 80-100% = Zone D
+        }
+        
+        zone_colors_divider = {
+            "A": "rgba(76, 175, 80, 0.3)",   # Green
+            "B": "rgba(33, 150, 243, 0.3)",  # Blue
+            "C": "rgba(255, 152, 0, 0.3)",   # Orange
+            "D": "rgba(244, 67, 54, 0.3)"    # Red
+        }
+        
+        prev_y = 0
+        for i, (zone, boundary) in enumerate(zone_boundaries.items()):
+            y_pos = self.warehouse_length * boundary
+            
+            # Draw vertical divider line
+            if i < len(zone_boundaries) - 1:  # Don't draw line at the end
+                fig.add_trace(go.Scatter3d(
+                    x=[0, self.warehouse_width, self.warehouse_width, 0, 0],
+                    y=[y_pos, y_pos, y_pos, y_pos, y_pos],
+                    z=[0, 0, self.warehouse_height, self.warehouse_height, 0],
+                    mode='lines',
+                    line=dict(color='rgba(100, 100, 100, 0.4)', width=2, dash='dash'),
+                    name=f'Zone {zone} Boundary' if i == 0 else '',
+                    showlegend=(i == 0),
+                    hoverinfo='name'
+                ))
+            
+            # Add zone label at the center of each zone
+            zone_center_y = (prev_y + y_pos) / 2
+            zone_center_x = self.warehouse_width / 2
+            
+            fig.add_trace(go.Scatter3d(
+                x=[zone_center_x],
+                y=[zone_center_y],
+                z=[self.warehouse_height * 0.95],
+                mode='text',
+                text=[f'ZONE {zone}'],
+                textfont=dict(size=14, color=self.zone_colors.get(zone, 'gray'), family='Arial Black'),
+                name=f'Zone {zone}' if i == 0 else '',
+                showlegend=False,
+                hoverinfo='text',
+                hovertext=f'Zone {zone}: ' + {
+                    'A': 'High-Value, High-Turnover',
+                    'B': 'Medium-Value',
+                    'C': 'Bulky Items',
+                    'D': 'Long-Term Storage'
+                }.get(zone, '')
+            ))
+            
+            prev_y = y_pos
     
     def _add_racks_and_aisles(self, fig: go.Figure):
         """Add rack structures and aisles to the visualization."""
@@ -395,30 +456,44 @@ class Warehouse3DVisualizer:
         Generate 3D positions for products based on zone and warehouse layout.
         
         This method optimizes product placement considering:
-        - Distance from entry/exit paths
-        - Zone allocation
-        - Product characteristics
+        - Distance from entry/exit paths for accessibility
+        - Zone allocation based on profitability and turnover
+        - Product characteristics (size, demand, value)
+        
+        Zone Strategy:
+        - Zone A (High-value, high-turnover): Near entry (10-30%) for quick access
+        - Zone B (Medium-value): Middle area (30-60%) for balanced access
+        - Zone C (Bulky, low-value): Back-middle (60-80%) for space efficiency
+        - Zone D (Low-turnover): Far back (80-95%) for long-term storage
         """
         positions = []
         
-        # Zone-based positioning
-        # Zone A: Near entry (high turnover)
-        # Zone B: Middle area
-        # Zone C: Deep storage (bulky)
-        # Zone D: Far back (low turnover)
-        # UNALLOCATED: Random placement
-        
+        # Zone-based positioning optimized for entry/exit accessibility
         zone_ranges = {
-            "A": (0.1, 0.3),  # Front 10-30%
-            "B": (0.3, 0.6),  # Middle 30-60%
-            "C": (0.6, 0.8),  # Back-middle 60-80%
-            "D": (0.8, 0.95), # Far back 80-95%
+            "A": (0.05, 0.30),  # Front 5-30% - closest to entry for high turnover
+            "B": (0.30, 0.60),  # Middle 30-60% - moderate access
+            "C": (0.60, 0.80),  # Back-middle 60-80% - space for bulky items
+            "D": (0.80, 0.95),  # Far back 80-95% - long-term storage
             "UNALLOCATED": (0.1, 0.95)  # Anywhere
+        }
+        
+        # Width ranges by zone (optimize horizontal positioning too)
+        # Zone A gets priority positioning on the sides with better access
+        zone_width_preference = {
+            "A": (0.15, 0.85),  # Central corridor access
+            "B": (0.10, 0.90),  # Wider distribution
+            "C": (0.05, 0.95),  # Full width for bulky items
+            "D": (0.05, 0.95),  # Full width
+            "UNALLOCATED": (0.10, 0.90)
         }
         
         y_range = zone_ranges.get(zone, (0.2, 0.8))
         y_min = self.warehouse_length * y_range[0]
         y_max = self.warehouse_length * y_range[1]
+        
+        width_range = zone_width_preference.get(zone, (0.1, 0.9))
+        x_min = self.warehouse_width * width_range[0]
+        x_max = self.warehouse_width * width_range[1]
         
         for i, product in enumerate(products):
             # Check if product has assigned position
@@ -429,10 +504,27 @@ class Warehouse3DVisualizer:
                     product.position.z
                 ))
             else:
-                # Generate random position within zone range
-                x = np.random.uniform(2, self.warehouse_width - 2)
+                # Generate optimized position within zone range
+                # For high-value items (Zone A), position closer to entry path
+                if zone == "A":
+                    # Prefer positions closer to entry (left side of warehouse)
+                    x = np.random.triangular(x_min, x_min + (x_max - x_min) * 0.3, x_max)
+                    # Prefer lower shelves for faster access
+                    z = np.random.uniform(0.5, min(self.warehouse_height * 0.5, 4.0))
+                elif zone == "B":
+                    # More balanced distribution
+                    x = np.random.uniform(x_min, x_max)
+                    z = np.random.uniform(0.5, min(self.warehouse_height * 0.6, 5.0))
+                elif zone == "C":
+                    # Bulky items - use more floor space and lower shelves
+                    x = np.random.uniform(x_min, x_max)
+                    z = np.random.uniform(0.3, min(self.warehouse_height * 0.4, 3.0))
+                else:  # Zone D
+                    # Back storage - can use full height
+                    x = np.random.uniform(x_min, x_max)
+                    z = np.random.uniform(0.5, min(self.warehouse_height * 0.8, 6.0))
+                
                 y = np.random.uniform(y_min, y_max)
-                z = np.random.uniform(0.5, min(self.warehouse_height * 0.8, 6.0))
                 
                 positions.append((x, y, z))
         
