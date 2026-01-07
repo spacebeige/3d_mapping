@@ -171,6 +171,21 @@ class WarehouseLayout(BaseModel):
         return v
 
 
+class AccessPoint(BaseModel):
+    """Entry or exit point for warehouse operations"""
+    id: str = Field(description="Unique access point identifier")
+    name: str = Field(description="Human-readable name")
+    type: Literal["entry", "exit"] = Field(description="Point type")
+    position: Position3D = Field(description="3D position in warehouse")
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="Capabilities: standard, fragile, heavy, bulk, express"
+    )
+    base_cost: float = Field(ge=0, description="Cost to use this access point")
+    capacity_per_hour: int = Field(gt=0, description="Throughput limit")
+    active: bool = Field(default=True, description="Whether point is active")
+
+
 class WarehouseConfig(BaseModel):
     """Complete warehouse configuration"""
     name: str = Field(description="Warehouse name/identifier")
@@ -179,6 +194,10 @@ class WarehouseConfig(BaseModel):
     storage_systems: List[RackSystem] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
+    
+    # Multi-access point system
+    entry_points: List[AccessPoint] = Field(default_factory=list, description="Entry points")
+    exit_points: List[AccessPoint] = Field(default_factory=list, description="Exit points")
 
     @field_validator('dimensions')
     @classmethod
@@ -245,6 +264,113 @@ class WarehouseConfig(BaseModel):
         shelves_per_level = 15
         
         return int(self.layout.num_aisles * racks_per_aisle * avg_levels * shelves_per_level)
+    
+    def add_default_access_points(self):
+        """
+        Add default entry and exit points based on warehouse dimensions.
+        
+        Entry Points:
+        1. Main Entry (Front-Left)
+        2. Receiving Dock (Back-Left)
+        3. Express Entry (Front-Right)
+        4. Bulk Entry (Mid-Left)
+        
+        Exit Points:
+        1. Shipping Dock A (Front-Right)
+        2. Shipping Dock B (Back-Right)
+        3. Express Dock (Front-Center)
+        4. Return Center (Mid-Right)
+        """
+        width = self.dimensions.width
+        length = self.warehouse_length
+        
+        # Entry Points
+        self.entry_points = [
+            AccessPoint(
+                id="entry_main",
+                name="Main Entry",
+                type="entry",
+                position=Position3D(x=5.0, y=5.0, z=0.0),
+                capabilities=["standard", "fragile", "heavy", "bulk", "express"],
+                base_cost=2.0,
+                capacity_per_hour=200,
+                active=True
+            ),
+            AccessPoint(
+                id="entry_receiving",
+                name="Receiving Dock",
+                type="entry",
+                position=Position3D(x=5.0, y=length - 5.0, z=0.0),
+                capabilities=["heavy", "bulk"],
+                base_cost=1.5,
+                capacity_per_hour=150,
+                active=True
+            ),
+            AccessPoint(
+                id="entry_express",
+                name="Express Entry",
+                type="entry",
+                position=Position3D(x=width - 5.0, y=5.0, z=0.0),
+                capabilities=["fragile", "express"],
+                base_cost=3.0,
+                capacity_per_hour=100,
+                active=True
+            ),
+            AccessPoint(
+                id="entry_bulk",
+                name="Bulk Entry",
+                type="entry",
+                position=Position3D(x=5.0, y=length / 2, z=0.0),
+                capabilities=["bulk"],
+                base_cost=1.0,
+                capacity_per_hour=300,
+                active=True
+            )
+        ]
+        
+        # Exit Points
+        self.exit_points = [
+            AccessPoint(
+                id="exit_shipping_a",
+                name="Shipping Dock A",
+                type="exit",
+                position=Position3D(x=width - 5.0, y=5.0, z=0.0),
+                capabilities=["standard", "fragile", "heavy", "bulk", "express"],
+                base_cost=2.5,
+                capacity_per_hour=200,
+                active=True
+            ),
+            AccessPoint(
+                id="exit_shipping_b",
+                name="Shipping Dock B",
+                type="exit",
+                position=Position3D(x=width - 5.0, y=length - 5.0, z=0.0),
+                capabilities=["standard", "heavy"],
+                base_cost=2.0,
+                capacity_per_hour=250,
+                active=True
+            ),
+            AccessPoint(
+                id="exit_express",
+                name="Express Dock",
+                type="exit",
+                position=Position3D(x=width / 2, y=5.0, z=0.0),
+                capabilities=["fragile", "express"],
+                base_cost=4.0,
+                capacity_per_hour=80,
+                active=True
+            ),
+            AccessPoint(
+                id="exit_return",
+                name="Return Center",
+                type="exit",
+                position=Position3D(x=width - 5.0, y=length / 2, z=0.0),
+                capabilities=["standard", "fragile", "heavy", "bulk", "express"],
+                base_cost=1.5,
+                capacity_per_hour=120,
+                active=True
+            )
+        ]
 
 
 class Product(BaseModel):
@@ -274,6 +400,13 @@ class Product(BaseModel):
     category_encoded: Optional[int] = None
     cluster: Optional[int] = None
     cluster_name: Optional[str] = None
+    
+    # Additional fields for CSV import
+    weight_kg: Optional[float] = Field(None, ge=0, description="Weight in kilograms")
+    is_fragile: Optional[bool] = Field(None, description="Whether item is fragile")
+    handling_cost_per_unit: Optional[float] = Field(None, ge=0, description="Handling cost per unit")
+    picking_time_seconds: Optional[float] = Field(None, ge=0, description="Time to pick item in seconds")
+    storage_location_id: Optional[str] = Field(None, description="Storage location ID from CSV")
 
     @computed_field
     @property

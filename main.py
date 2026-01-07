@@ -14,6 +14,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
+from pathlib import Path
 
 # Visualization
 import plotly.graph_objects as go
@@ -36,6 +37,13 @@ from viz import Warehouse3DVisualizer, WarehouseCharts
 from geo import Map3DGenerator, generate_sample_network
 from utils import WarehouseGenerator
 from core import PathfindingGrid, generate_warehouse_navigation_grid
+
+# New imports for CSV upload and routing
+from utils.csv_loader import CSVLoader
+from utils.cost_reporter import CostReporter
+from routing.cost_optimizer import CostOptimizedRouter
+from viz.movement_animation import MovementAnimator
+from viz.rack_detail import RackDetailVisualizer
 
 
 class WarehouseDigitalTwin:
@@ -322,6 +330,226 @@ class WarehouseDigitalTwin:
         )
         
         return fig
+    
+    def load_products_from_csv(self, csv_path: str) -> List[Product]:
+        """
+        Load products from CSV file.
+        
+        Args:
+            csv_path: Path to CSV file with 23 columns
+            
+        Returns:
+            List of Product objects
+        """
+        print(f"📁 Loading products from CSV: {csv_path}")
+        
+        csv_loader = CSVLoader(
+            warehouse_config={'dimensions': self.warehouse_config.dimensions} 
+            if self.warehouse_config else None
+        )
+        
+        products = csv_loader.load_products(csv_path)
+        
+        # Convert to DataFrame for internal use
+        data = []
+        for product in products:
+            data.append({
+                'item_id': product.item_id,
+                'category': product.category,
+                'description': product.description,
+                'stock_level': product.stock_level,
+                'daily_demand': product.daily_demand,
+                'profit_per_unit': product.profit_per_unit,
+                'holding_cost_per_unit_day': product.holding_cost_per_unit_day,
+                'turnover_ratio': product.turnover_ratio,
+                'size_score': product.size_score
+            })
+        
+        self.products_df = pd.DataFrame(data)
+        
+        # Show statistics
+        stats = csv_loader.get_statistics()
+        print(f"\n📊 CSV Import Statistics:")
+        print(f"   Products: {stats.get('total_products', 0)}")
+        print(f"   Total Stock: {stats.get('total_stock', 0):,} units")
+        print(f"   Daily Demand: {stats.get('total_demand', 0):.1f} units/day")
+        print(f"   Zones: {stats.get('zones', {})}")
+        
+        return products
+    
+    def create_cost_optimized_routes(
+        self,
+        products: List[Product],
+        operation: str = "retrieve"
+    ) -> List:
+        """
+        Create cost-optimized routes for products.
+        
+        Args:
+            products: List of products to route
+            operation: Operation type ("retrieve", "store", "relocate")
+            
+        Returns:
+            List of OptimalRoute objects
+        """
+        if not self.warehouse_config:
+            raise ValueError("Warehouse not configured. Call create_warehouse() first.")
+        
+        print(f"🚀 Calculating cost-optimized routes for {len(products)} products...")
+        
+        router = CostOptimizedRouter(self.warehouse_config)
+        routes = []
+        
+        for product in products:
+            route = router.find_optimal_route(
+                product=product,
+                start_position=product.position,
+                operation=operation
+            )
+            routes.append(route)
+        
+        print(f"✅ Routes calculated")
+        print(f"   Total Cost: ${sum(r.total_cost for r in routes):.2f}")
+        print(f"   Average Cost: ${sum(r.total_cost for r in routes) / len(routes):.2f}")
+        
+        return routes
+    
+    def generate_cost_report(
+        self,
+        products: List[Product],
+        routes: List,
+        output_path: str = "cost_report.csv"
+    ) -> pd.DataFrame:
+        """
+        Generate cost analysis report.
+        
+        Args:
+            products: List of products
+            routes: List of routes
+            output_path: Output CSV path
+            
+        Returns:
+            Cost report DataFrame
+        """
+        print(f"📋 Generating cost report...")
+        
+        reporter = CostReporter(self.warehouse_config)
+        df = reporter.generate_shipping_report(products, routes)
+        
+        df.to_csv(output_path, index=False)
+        print(f"✅ Report saved: {output_path}")
+        
+        return df
+    
+    def visualize_product_movement(
+        self,
+        product: Product,
+        route,
+        duration_seconds: float = 5.0,
+        output_path: str = "movement_animation.html"
+    ) -> go.Figure:
+        """
+        Create animated visualization of product movement.
+        
+        Args:
+            product: Product to animate
+            route: Optimal route
+            duration_seconds: Animation duration
+            output_path: Output HTML path
+            
+        Returns:
+            Plotly Figure
+        """
+        if not self.warehouse_config:
+            raise ValueError("Warehouse not configured.")
+        
+        print(f"🎬 Creating movement animation...")
+        
+        animator = MovementAnimator()
+        fig = animator.animate_product_movement(
+            product=product,
+            route=route,
+            warehouse_config=self.warehouse_config,
+            duration_seconds=duration_seconds
+        )
+        
+        fig.write_html(output_path)
+        print(f"✅ Animation saved: {output_path}")
+        
+        return fig
+    
+    def visualize_cost_heatmap(
+        self,
+        products: Optional[List[Product]] = None,
+        routes: Optional[List] = None,
+        output_path: str = "cost_heatmap.html"
+    ) -> go.Figure:
+        """
+        Create 3D cost heatmap.
+        
+        Args:
+            products: Optional products list
+            routes: Optional routes list
+            output_path: Output HTML path
+            
+        Returns:
+            Plotly Figure
+        """
+        if not self.warehouse_config:
+            raise ValueError("Warehouse not configured.")
+        
+        print(f"🗺️ Creating cost heatmap...")
+        
+        reporter = CostReporter(self.warehouse_config)
+        fig = reporter.create_cost_heatmap(products, routes)
+        
+        fig.write_html(output_path)
+        print(f"✅ Heatmap saved: {output_path}")
+        
+        return fig
+    
+    def visualize_rack_detail(
+        self,
+        rack_id: str,
+        products: Optional[List[Product]] = None,
+        output_path: str = "rack_detail.html"
+    ) -> go.Figure:
+        """
+        Create detailed rack visualization.
+        
+        Args:
+            rack_id: Rack identifier
+            products: Optional products list
+            output_path: Output HTML path
+            
+        Returns:
+            Plotly Figure
+        """
+        if not self.warehouse_config:
+            raise ValueError("Warehouse not configured.")
+        
+        print(f"🗂️ Creating rack detail view...")
+        
+        visualizer = RackDetailVisualizer(self.warehouse_config)
+        fig = visualizer.visualize_rack(rack_id, products)
+        
+        fig.write_html(output_path)
+        print(f"✅ Rack view saved: {output_path}")
+        
+        return fig
+    
+    def create_allocator(self) -> WarehouseAllocator:
+        """
+        Create and return warehouse allocator.
+        
+        Returns:
+            WarehouseAllocator instance
+        """
+        if self.allocator is None:
+            total_capacity = self.warehouse_config.dimensions.volume * 0.7 if self.warehouse_config else 1000000
+            self.allocator = WarehouseAllocator(total_space=total_capacity)
+        
+        return self.allocator
 
 
 def generate_sample_data(num_products: int = 100) -> pd.DataFrame:

@@ -79,7 +79,9 @@ class Warehouse3DVisualizer:
         products: Optional[List[Product]] = None,
         show_products: bool = True,
         max_products_display: int = 1000,
-        show_entry_exit: bool = True
+        show_entry_exit: bool = True,
+        show_access_points: bool = False,
+        show_cost_heatmap: bool = False
     ) -> go.Figure:
         """
         Create complete 3D warehouse visualization.
@@ -89,6 +91,8 @@ class Warehouse3DVisualizer:
             show_products: Whether to show products
             max_products_display: Maximum number of products to display
             show_entry_exit: Whether to show entry/exit paths
+            show_access_points: Whether to show access points
+            show_cost_heatmap: Whether to show cost heatmap overlay
             
         Returns:
             Plotly Figure object
@@ -108,9 +112,17 @@ class Warehouse3DVisualizer:
         if show_entry_exit:
             self._add_entry_exit_paths(fig)
         
+        # Add access points (new feature)
+        if show_access_points:
+            self._add_access_points_visualization(fig)
+        
+        # Add cost heatmap (new feature)
+        if show_cost_heatmap:
+            self._add_cost_heatmap_overlay(fig)
+        
         # Add products if provided
         if show_products and products:
-            self._add_products(fig, products, max_products_display)
+            self._add_products_with_exact_locations(fig, products, max_products_display)
         
         # Configure layout
         self._configure_layout(fig)
@@ -610,3 +622,266 @@ class Warehouse3DVisualizer:
             height=700,
             hovermode='closest'
         )
+    
+    def _add_access_points_visualization(self, fig: go.Figure):
+        """
+        Add entry and exit access points to visualization.
+        
+        Shows access points as special markers with capabilities and costs.
+        """
+        # Entry points (green diamonds)
+        if self.config.entry_points:
+            for entry in self.config.entry_points:
+                if not entry.active:
+                    continue
+                
+                fig.add_trace(go.Scatter3d(
+                    x=[entry.position.x],
+                    y=[entry.position.y],
+                    z=[entry.position.z + 1],  # Slightly elevated
+                    mode='markers+text',
+                    marker=dict(
+                        size=15,
+                        color='green',
+                        symbol='diamond',
+                        line=dict(color='darkgreen', width=2)
+                    ),
+                    text=entry.name,
+                    textposition='top center',
+                    textfont=dict(size=10, color='darkgreen'),
+                    name=f'Entry: {entry.name}',
+                    hovertemplate=(
+                        f"<b>{entry.name}</b><br>" +
+                        f"Type: Entry Point<br>" +
+                        f"Cost: ${entry.base_cost:.2f}<br>" +
+                        f"Capacity: {entry.capacity_per_hour}/hr<br>" +
+                        f"Capabilities: {', '.join(entry.capabilities)}<br>" +
+                        "<extra></extra>"
+                    ),
+                    showlegend=True
+                ))
+        
+        # Exit points (red diamonds)
+        if self.config.exit_points:
+            for exit_point in self.config.exit_points:
+                if not exit_point.active:
+                    continue
+                
+                fig.add_trace(go.Scatter3d(
+                    x=[exit_point.position.x],
+                    y=[exit_point.position.y],
+                    z=[exit_point.position.z + 1],
+                    mode='markers+text',
+                    marker=dict(
+                        size=15,
+                        color='red',
+                        symbol='diamond',
+                        line=dict(color='darkred', width=2)
+                    ),
+                    text=exit_point.name,
+                    textposition='top center',
+                    textfont=dict(size=10, color='darkred'),
+                    name=f'Exit: {exit_point.name}',
+                    hovertemplate=(
+                        f"<b>{exit_point.name}</b><br>" +
+                        f"Type: Exit Point<br>" +
+                        f"Cost: ${exit_point.base_cost:.2f}<br>" +
+                        f"Capacity: {exit_point.capacity_per_hour}/hr<br>" +
+                        f"Capabilities: {', '.join(exit_point.capabilities)}<br>" +
+                        "<extra></extra>"
+                    ),
+                    showlegend=True
+                ))
+    
+    def _add_cost_heatmap_overlay(self, fig: go.Figure):
+        """
+        Add cost heatmap overlay showing expensive vs cheap zones.
+        
+        Green areas: Low cost to ship from
+        Yellow areas: Medium cost to ship from
+        Red areas: High cost to ship from
+        """
+        # Create grid for heatmap
+        grid_size = 8
+        x_grid = np.linspace(5, self.warehouse_width - 5, grid_size)
+        y_grid = np.linspace(5, self.warehouse_length - 5, grid_size)
+        
+        # Calculate cost at each grid point based on distance to exits
+        for x in x_grid:
+            for y in y_grid:
+                # Find minimum distance to any exit point
+                min_dist = float('inf')
+                if self.config.exit_points:
+                    for exit_point in self.config.exit_points:
+                        dx = x - exit_point.position.x
+                        dy = y - exit_point.position.y
+                        dist = np.sqrt(dx**2 + dy**2)
+                        min_dist = min(min_dist, dist)
+                
+                # Estimate cost (base cost + distance cost + typical exit cost)
+                estimated_cost = 0.10 * min_dist + 2.5
+                
+                # Determine color
+                if estimated_cost < 5:
+                    color = 'green'
+                    opacity = 0.2
+                elif estimated_cost < 10:
+                    color = 'yellow'
+                    opacity = 0.3
+                else:
+                    color = 'red'
+                    opacity = 0.4
+                
+                # Add marker
+                fig.add_trace(go.Scatter3d(
+                    x=[x],
+                    y=[y],
+                    z=[self.warehouse_height / 2],
+                    mode='markers',
+                    marker=dict(
+                        size=20,
+                        color=color,
+                        opacity=opacity,
+                        symbol='square'
+                    ),
+                    name=f'Cost Zone',
+                    hovertemplate=(
+                        f"Position: ({x:.1f}, {y:.1f})<br>" +
+                        f"Est. Cost: ${estimated_cost:.2f}<br>" +
+                        "<extra></extra>"
+                    ),
+                    showlegend=False
+                ))
+    
+    def _add_products_with_exact_locations(
+        self,
+        fig: go.Figure,
+        products: List[Product],
+        max_display: int,
+        show_labels: bool = True
+    ):
+        """
+        Enhanced product visualization with exact shelf positions.
+        
+        Shows:
+        - Exact shelf position
+        - Hover text with full location details
+        - Color by zone
+        - Size by daily_demand
+        - Opacity by stock_level
+        """
+        # Sample products if too many
+        display_products = products[:max_display] if len(products) > max_display else products
+        
+        # Group by zone
+        products_by_zone = {}
+        for product in display_products:
+            zone = product.final_zone or product.predicted_zone
+            zone_key = self._extract_zone_key(zone)
+            
+            if zone_key not in products_by_zone:
+                products_by_zone[zone_key] = []
+            products_by_zone[zone_key].append(product)
+        
+        # Add products for each zone
+        for zone, zone_products in products_by_zone.items():
+            x_coords = []
+            y_coords = []
+            z_coords = []
+            hover_texts = []
+            sizes = []
+            
+            for product in zone_products:
+                # Use actual position if available
+                if product.position:
+                    x_coords.append(product.position.x)
+                    y_coords.append(product.position.y)
+                    z_coords.append(product.position.z)
+                else:
+                    # Generate position
+                    pos = self._generate_single_product_position(product, zone)
+                    x_coords.append(pos[0])
+                    y_coords.append(pos[1])
+                    z_coords.append(pos[2])
+                
+                # Parse storage location
+                aisle, rack, shelf = self._parse_storage_location(
+                    product.storage_location_id or product.shelf or ""
+                )
+                
+                # Build hover text
+                hover_text = (
+                    f"📦 <b>{product.item_id}</b><br>" +
+                    f"Category: {product.category}<br>" +
+                    f"Zone: {zone} ({self.ZONE_DESCRIPTIONS.get(zone, 'Unknown')})<br>" +
+                    f"Location: Aisle {aisle}, Rack {rack}, Shelf {shelf}<br>" +
+                    f"Stock: {product.stock_level} units<br>" +
+                    f"Daily Demand: {product.daily_demand} units<br>"
+                )
+                
+                if product.handling_cost_per_unit:
+                    hover_text += f"Handling Cost: ${product.handling_cost_per_unit:.2f}<br>"
+                
+                hover_texts.append(hover_text)
+                
+                # Size by daily demand (4-12 range)
+                size = min(12, max(4, 4 + product.daily_demand / 10))
+                sizes.append(size)
+            
+            # Get zone color
+            color = self.zone_colors.get(zone, '#9e9e9e')
+            
+            # Add trace
+            fig.add_trace(go.Scatter3d(
+                x=x_coords,
+                y=y_coords,
+                z=z_coords,
+                mode='markers+text' if show_labels and len(zone_products) < 20 else 'markers',
+                marker=dict(
+                    symbol='diamond',
+                    size=sizes,
+                    color=color,
+                    opacity=0.7,
+                    line=dict(color='white', width=1)
+                ),
+                text=[p.item_id for p in zone_products] if show_labels else None,
+                textposition='top center',
+                textfont=dict(size=6),
+                name=f'Zone {zone} Products',
+                hovertemplate='%{hovertext}<extra></extra>',
+                hovertext=hover_texts,
+                showlegend=True
+            ))
+    
+    def _parse_storage_location(self, storage_location_id: str) -> Tuple[int, str, str]:
+        """
+        Parse storage_location_id to extract aisle, rack, shelf.
+        
+        Args:
+            storage_location_id: Storage location ID (e.g., "L195", "L7")
+            
+        Returns:
+            Tuple of (aisle_num, rack_id, shelf_id)
+        """
+        if not storage_location_id or storage_location_id == 'nan':
+            return (0, "R0", "L0")
+        
+        try:
+            # Extract numeric part
+            location_num = int(''.join(filter(str.isdigit, storage_location_id)))
+            
+            # Calculate aisle, rack, shelf
+            aisle_num = (location_num // 200) + 1
+            rack_num = ((location_num % 200) // 20) + 1
+            shelf_num = (location_num % 20) + 1
+            
+            return (aisle_num, f"R{rack_num}", storage_location_id)
+        except:
+            return (0, "R0", storage_location_id)
+    
+    def _generate_single_product_position(
+        self, product: Product, zone: str
+    ) -> Tuple[float, float, float]:
+        """Generate position for a single product"""
+        positions = self._generate_product_positions([product], zone)
+        return positions[0] if positions else (0, 0, 0)
