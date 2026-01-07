@@ -12,6 +12,7 @@ Each product gets a unique ID and position automatically!
 """
 
 import sys
+import traceback
 from pathlib import Path
 
 # Add parent directory to path
@@ -314,7 +315,6 @@ def save_files(fig, products_df, twin, products):
             print(f"⚠️ Dashboard creation skipped: {e}")
         except Exception as e:
             print(f"⚠️ Dashboard creation failed with unexpected error: {type(e).__name__}")
-            import traceback
             traceback.print_exc()
     
     print("\n📁 Files saved successfully!")
