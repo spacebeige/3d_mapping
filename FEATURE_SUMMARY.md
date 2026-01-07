@@ -69,15 +69,20 @@ Daily demand: [User Input]
 
 **Algorithm:**
 - Products distributed across aisles (based on count)
-- 20 racks per aisle
-- 5 shelves per rack
+- Racks per aisle: Dynamic based on warehouse length (1 rack per 5m)
+- Shelves per rack: Dynamic based on warehouse height (1 shelf per 1.6m of usable height)
 - Each product gets unique (x, y, z) coordinates
 
 **Position Formula:**
 ```python
-aisle_num = (index // 100) % total_aisles
-rack_num = (index % 100) // 5
-shelf_num = index % 5
+# Dynamic calculations based on warehouse dimensions
+racks_per_aisle = max(10, int(warehouse_length / 5))  # 1 rack per 5m
+shelves_per_rack = max(3, int(usable_height / 1.6))   # 1 shelf per 1.6m
+products_per_aisle = racks_per_aisle * shelves_per_rack
+
+aisle_num = (index // products_per_aisle) % total_aisles
+rack_num = (index % products_per_aisle) // shelves_per_rack
+shelf_num = index % shelves_per_rack
 
 x = aisle_spacing * (aisle_num + 1)
 y = rack_spacing * (rack_num + 0.5)
@@ -134,7 +139,10 @@ Three files created:
 
 ### Position Distribution Example
 
-For 25 products in 10-aisle warehouse:
+For 25 products in 100m × 80m × 10m warehouse (10 aisles):
+- Racks per aisle: 20 (100m / 5)
+- Shelves per rack: 5 (8m usable / 1.6)
+- Products per aisle: 100 (20 × 5)
 
 ```
 Product 1:  Aisle 1, Rack 1, Shelf 1 → (7.27, 2.50, 0.80)
@@ -148,7 +156,8 @@ Product 21: Aisle 1, Rack 5, Shelf 1 → (7.27, 22.50, 0.80)
 ...
 ```
 
-**Result:** All 25 positions are unique (0 duplicates)
+For 200m warehouse: 40 racks/aisle, 6 shelves/rack = 240 products/aisle
+For 50m warehouse: 10 racks/aisle, 4 shelves/rack = 40 products/aisle
 
 ## Testing
 
