@@ -103,7 +103,15 @@ def get_warehouse_dimensions():
         height = float(input("Enter warehouse height in meters (default: 10): ") or "10")
         num_aisles = int(input("Enter number of aisles (default: 10): ") or "10")
     except ValueError as e:
-        print(f"❌ Invalid input: {e}")
+        print(f"❌ Invalid input for warehouse configuration.")
+        print("   Please enter positive numbers for length, width, and height, and a positive integer for aisles.")
+        print(f"   Details: {e}")
+        print("Using default values for all dimensions and aisles...")
+        length, width, height, num_aisles = 100, 80, 10, 10
+    
+    # Validate that all dimensions and aisle count are positive
+    if length <= 0 or width <= 0 or height <= 0 or num_aisles <= 0:
+        print("❌ Invalid configuration: dimensions and number of aisles must be positive.")
         print("Using default values...")
         length, width, height, num_aisles = 100, 80, 10, 10
     
@@ -302,8 +310,12 @@ def save_files(fig, products_df, twin, products):
             dashboard = twin.create_dashboard()
             dashboard.write_html("dashboard.html")
             print("✅ Saved: dashboard.html")
-        except Exception as e:
+        except (AttributeError, ValueError, KeyError) as e:
             print(f"⚠️ Dashboard creation skipped: {e}")
+        except Exception as e:
+            print(f"⚠️ Dashboard creation failed with unexpected error: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
     
     print("\n📁 Files saved successfully!")
     print("   Open warehouse_3d.html in your web browser to view the 3D visualization")
