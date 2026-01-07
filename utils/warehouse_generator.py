@@ -21,6 +21,9 @@ from models.warehouse import (
     ZoneType
 )
 
+# Align with capacity estimation heuristic (60% racks / 40% aisles) to keep geometry valid
+FALLBACK_RACK_RATIO = 0.6
+
 
 class WarehouseGenerator:
     """
@@ -60,8 +63,14 @@ class WarehouseGenerator:
             WarehouseConfig instance
         """
         # Calculate layout
-        total_rack_width = width - (num_aisles * aisle_width)
-        rack_bay_width = total_rack_width / (num_aisles * 2) if num_aisles > 0 else width / 2
+        total_aisle_space = num_aisles * aisle_width
+        rack_divisor = num_aisles * 2 if num_aisles > 0 else 2
+        total_rack_width = width - total_aisle_space
+        used_fallback_ratio = False
+        if total_rack_width <= 0:
+            total_rack_width = width * FALLBACK_RACK_RATIO
+            used_fallback_ratio = True
+        rack_bay_width = total_rack_width / rack_divisor
         
         # Create layout
         layout = WarehouseLayout(
@@ -92,6 +101,9 @@ class WarehouseGenerator:
                 "estimated_total_shelves": 0
             }
         )
+        if used_fallback_ratio:
+            warehouse.metadata["layout_fallback_applied"] = True
+            warehouse.metadata["fallback_reason"] = "aisle_space_exceeded_width"
         
         # Generate structure
         if generate_full_structure and num_aisles <= 100:
