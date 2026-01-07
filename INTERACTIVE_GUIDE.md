@@ -214,17 +214,22 @@ If you don't enter any products, the system automatically adds 5 sample products
 
 ### Position Algorithm
 
-Products are distributed using this logic:
+Products are distributed using dynamic calculations based on warehouse dimensions:
 - **Across aisles**: Products spread across all aisles
-- **Along racks**: 20 racks per aisle
-- **On shelves**: 5 shelves per rack
+- **Along racks**: Dynamic - 1 rack per 5m of length (e.g., 100m = 20 racks)
+- **On shelves**: Dynamic - 1 shelf per 1.6m of usable height (e.g., 8m usable = 5 shelves)
 - **Formula**: `position = f(product_index, num_aisles, dimensions)`
 
-Example distribution for 10 products in 10-aisle warehouse:
+Example for 100m × 80m × 10m warehouse with 10 aisles:
+- Racks per aisle: 20 (100m ÷ 5)
+- Shelves per rack: 5 (8m usable ÷ 1.6)
 - Products 1-5: Aisle 1, Rack 1, Shelves 1-5
 - Products 6-10: Aisle 1, Rack 2, Shelves 1-5
 - Product 101: Aisle 2, Rack 1, Shelf 1
-- etc.
+
+Different warehouse sizes scale automatically:
+- 200m warehouse → 40 racks/aisle
+- 50m warehouse → 10 racks/aisle
 
 ### Zone Assignment Logic
 

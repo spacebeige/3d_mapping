@@ -147,7 +147,14 @@ def add_products(num_aisles, length, width, height):
         
         try:
             stock_level = int(input("Stock level (default: 100): ") or "100")
+            if stock_level < 0:
+                print(f"⚠️ Stock level cannot be negative, using 0")
+                stock_level = 0
+            
             daily_demand = float(input("Daily demand (default: 10): ") or "10")
+            if daily_demand < 0:
+                print(f"⚠️ Daily demand cannot be negative, using 0")
+                daily_demand = 0
         except ValueError as e:
             print(f"⚠️ Invalid number, using defaults: {e}")
             stock_level = 100
