@@ -13,6 +13,7 @@ Works in Jupyter notebooks, Google Colab, and VS Code notebooks!
 
 import sys
 import traceback
+import os
 from pathlib import Path
 import io
 import tempfile
@@ -484,7 +485,6 @@ def create_gui():
                                 products = csv_loader.load_products(tmp_path)
                             finally:
                                 # Clean up temp file
-                                import os
                                 try:
                                     os.unlink(tmp_path)
                                 except:
@@ -635,11 +635,20 @@ def create_gui():
 def main():
     """Main execution flow - supports both GUI and CLI modes"""
     # Check if running in a notebook environment
+    # Use multiple detection methods for robustness
+    in_notebook = False
+    
+    # Method 1: Check for IPython
     try:
-        get_ipython()  # This will exist in Jupyter/Colab
+        from IPython import get_ipython
+        if get_ipython() is not None:
+            in_notebook = True
+    except (ImportError, NameError):
+        pass
+    
+    # Method 2: Check sys.modules as fallback
+    if not in_notebook and 'ipykernel' in sys.modules:
         in_notebook = True
-    except NameError:
-        in_notebook = False
     
     # If in notebook and GUI is available, use GUI
     if in_notebook and GUI_AVAILABLE:

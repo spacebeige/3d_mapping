@@ -90,14 +90,14 @@ class MovementAnimator:
                 symbol='diamond',
                 line=dict(color='white', width=2)
             ),
-            text=f"$0.00",
+            text=f"${0:.2f}",
             textposition='top center',
             name=product.item_id,
             hovertemplate=(
                 f"<b>{product.item_id}</b><br>" +
                 f"Category: {product.category}<br>" +
                 f"Position: ({initial_pos.x:.1f}, {initial_pos.y:.1f}, {initial_pos.z:.1f})<br>" +
-                f"Current Cost: $0.00<br>" +
+                f"Current Cost: ${0:.2f}<br>" +
                 f"Progress: 0%<br>" +
                 "<extra></extra>"
             )
