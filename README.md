@@ -291,3 +291,213 @@ MIT License - see [LICENSE](LICENSE) file for details
 ---
 
 **Note**: This system supports **unlimited aisles and shelves** - no hardcoded limits! Perfect for massive distribution centers and future warehouse expansion.
+---
+
+## 📁 CSV Upload & Cost-Optimized Routing
+
+### CSV Format Specification
+
+The system supports importing inventory data via CSV files with 23 columns:
+
+```csv
+item_id,category,description,stock_level,reorder_point,reorder_frequency_days,lead_time_days,daily_demand,demand_std_dev,item_popularity_score,storage_location_id,zone,picking_time_seconds,handling_cost_per_unit,unit_price,holding_cost_per_unit_day,stockout_count_last_month,order_fulfillment_rate,total_orders_last_month,turnover_ratio,layout_efficiency_score,last_restock_date,forecasted_demand_next_7d,KPI_score
+ITM100000,Telemedicine,Portable Health Monitor,260,150,30,7,12.65,2.3,8.5,L195,A,45,0.52,89.99,0.15,1,0.98,378,2.4,0.92,2024-01-15,88.55,85.2
+ITM100001,Electronics,Smart Display,450,200,25,5,18.2,3.1,9.2,L7,A,38,0.48,124.50,0.18,0,0.99,546,2.8,0.94,2024-01-20,127.4,88.5
+```
+
+### Column Descriptions
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `item_id` | String | Unique product identifier (e.g., ITM100000) |
+| `category` | String | Product category (Electronics, VR Headsets, etc.) |
+| `description` | String | Product description |
+| `stock_level` | Integer | Current stock quantity |
+| `reorder_point` | Integer | Minimum stock before reorder |
+| `reorder_frequency_days` | Integer | Days between reorders |
+| `lead_time_days` | Integer | Supplier lead time |
+| `daily_demand` | Float | Average daily demand |
+| `demand_std_dev` | Float | Demand standard deviation |
+| `item_popularity_score` | Float | Popularity rating (1-10) |
+| `storage_location_id` | String | Storage location (e.g., L195) |
+| `zone` | String | Warehouse zone (A/B/C/D) |
+| `picking_time_seconds` | Float | Time to pick item |
+| `handling_cost_per_unit` | Float | Handling cost per unit ($) |
+| `unit_price` | Float | Unit price ($) |
+| `holding_cost_per_unit_day` | Float | Daily holding cost ($) |
+| `stockout_count_last_month` | Integer | Number of stockouts |
+| `order_fulfillment_rate` | Float | Fulfillment rate (0-1) |
+| `total_orders_last_month` | Integer | Orders last month |
+| `turnover_ratio` | Float | Inventory turnover ratio |
+| `layout_efficiency_score` | Float | Layout efficiency (0-1) |
+| `last_restock_date` | Date | Last restock date (YYYY-MM-DD) |
+| `forecasted_demand_next_7d` | Float | 7-day demand forecast |
+| `KPI_score` | Float | Overall KPI score |
+
+### Usage Example
+
+```python
+from main import WarehouseDigitalTwin
+from utils.csv_loader import CSVLoader
+from routing.cost_optimizer import CostOptimizedRouter
+
+# Initialize system
+twin = WarehouseDigitalTwin()
+
+# Load products from CSV
+products = twin.load_products_from_csv("inventory.csv")
+print(f"Loaded {len(products)} products")
+
+# Create warehouse with multi-access points
+warehouse = twin.create_warehouse(
+    name="Multi-Access Distribution Center",
+    length=200.0,
+    width=150.0,
+    height=12.0,
+    num_aisles=50
+)
+
+# Add default entry/exit points
+warehouse.add_default_access_points()
+
+# Find optimal routes
+routes = twin.create_cost_optimized_routes(products[:10], operation="retrieve")
+
+# Generate cost report
+report = twin.generate_cost_report(products[:10], routes, "shipping_costs.csv")
+
+# Create visualizations
+fig_3d = twin.visualize_warehouse_3d()
+fig_heatmap = twin.visualize_cost_heatmap(products, routes)
+fig_animation = twin.visualize_product_movement(products[0], routes[0])
+```
+
+### Multi-Access Point System
+
+The system supports multiple entry and exit points with different capabilities and costs:
+
+#### Default Entry Points
+1. **Main Entry** - Front-Left (5m, 5m, 0)
+   - Capabilities: All (standard, fragile, heavy, bulk, express)
+   - Cost: $2.00 | Capacity: 200/hr
+
+2. **Receiving Dock** - Back-Left (5m, Length-5m, 0)
+   - Capabilities: Heavy, Bulk
+   - Cost: $1.50 | Capacity: 150/hr
+
+3. **Express Entry** - Front-Right (Width-5m, 5m, 0)
+   - Capabilities: Fragile, Express
+   - Cost: $3.00 | Capacity: 100/hr
+
+4. **Bulk Entry** - Mid-Left (5m, Length/2, 0)
+   - Capabilities: Bulk only
+   - Cost: $1.00 | Capacity: 300/hr
+
+#### Default Exit Points
+1. **Shipping Dock A** - Front-Right (Width-5m, 5m, 0)
+   - Capabilities: All
+   - Cost: $2.50 | Capacity: 200/hr
+
+2. **Shipping Dock B** - Back-Right (Width-5m, Length-5m, 0)
+   - Capabilities: Standard, Heavy
+   - Cost: $2.00 | Capacity: 250/hr
+
+3. **Express Dock** - Front-Center (Width/2, 5m, 0)
+   - Capabilities: Fragile, Express
+   - Cost: $4.00 | Capacity: 80/hr
+
+4. **Return Center** - Mid-Right (Width-5m, Length/2, 0)
+   - Capabilities: All
+   - Cost: $1.50 | Capacity: 120/hr
+
+### Cost Calculation
+
+The cost optimizer considers multiple factors:
+
+```python
+total_cost = (
+    base_distance_cost +           # $0.10 per meter
+    weight_penalty +                # +50% if weight > 20kg
+    fragility_penalty +             # +20% for fragile items
+    size_penalty +                  # +30% if size_score > 3.0
+    access_point_cost +             # From AccessPoint.base_cost
+    handling_cost +                 # From CSV data
+    time_cost                       # $0.05 per second
+)
+```
+
+### Fragile Item Categories
+- Electronics
+- VR Headsets
+- Quantum Devices
+- Telemedicine
+- Wearables
+
+### Zone Mapping
+- **Zone A**: High-Value, High-Turnover items (closest to exits)
+- **Zone B**: Medium-Value items
+- **Zone C**: Bulky items
+- **Zone D**: Low-demand, Long-term storage
+
+### Storage Location Mapping
+
+Storage location IDs (e.g., "L195") are automatically mapped to 3D coordinates:
+- Format: `L{number}` (e.g., L195, L7, L234)
+- Mapped to: Aisle number, Rack ID, Shelf position
+- Algorithm assumes: 50 aisles, 10 racks per aisle, 20 shelves per rack
+
+### Animated Product Movement
+
+Create animated visualizations showing:
+- Product moving from shelf → exit
+- Color-coded path (green/yellow/red based on cost)
+- Running cost counter
+- Access points highlighted
+- Trail effect
+
+```python
+from viz.movement_animation import MovementAnimator
+
+animator = MovementAnimator()
+fig = animator.animate_product_movement(
+    product=products[0],
+    route=routes[0],
+    warehouse_config=warehouse,
+    duration_seconds=5.0
+)
+fig.write_html("movement_animation.html")
+```
+
+### Cost Heatmap
+
+Visualize expensive vs. cheap shipping zones:
+- **Green areas**: Low cost (<$5)
+- **Yellow areas**: Medium cost ($5-$10)
+- **Red areas**: High cost (>$10)
+
+```python
+from utils.cost_reporter import CostReporter
+
+reporter = CostReporter(warehouse)
+fig = reporter.create_cost_heatmap(products, routes)
+fig.write_html("cost_heatmap.html")
+```
+
+### Complete Demo
+
+Run the complete integration demo:
+
+```bash
+cd 3d_mapping
+python examples/csv_upload_demo.py
+```
+
+This generates:
+- `warehouse_3d_multi_access.html` - 3D warehouse with access points
+- `product_movement_animation.html` - Animated product movement
+- `shipping_cost_report.csv` - Cost analysis CSV
+- `cost_heatmap.html` - 3D cost heatmap
+- `cost_breakdown.html` - Cost breakdown chart
+- `rack_detail.html` - Detailed rack view
+
+---
