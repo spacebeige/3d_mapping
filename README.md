@@ -39,7 +39,39 @@ A comprehensive **Digital Twin** system for warehouse optimization with advanced
 
 ## 🚀 Quick Start
 
-### Google Colab (Recommended)
+### 📓 Interactive Jupyter Notebook (Easiest!)
+
+Run the complete demo with interactive widgets:
+
+```bash
+# Clone and run the automated launcher
+git clone https://github.com/spacebeige/3d_mapping.git
+cd 3d_mapping
+
+# Option 1: Cross-platform Python script (Recommended)
+python3 run_warehouse_demo.py
+
+# Option 2: Linux/macOS shell script
+./run_warehouse_demo.sh
+
+# Option 3: Windows batch script
+run_warehouse_demo.bat
+
+# Option 4: Manual launch
+pip install -r requirements.txt
+jupyter notebook examples/warehouse_demo.ipynb
+```
+
+**Features of the interactive notebook:**
+- ✨ **Interactive widgets** for warehouse creation (no code editing!)
+- 📁 **Flexible data loading**: Load CSV or generate sample data
+- 🎛️ **Adjustable parameters**: Change warehouse size, dimensions, etc.
+- 🔍 **Error handling**: Clear messages if files are missing
+- 📊 **Full visualization suite**: 3D models, maps, analytics
+
+👉 **See [examples/README.md](examples/README.md) for detailed usage instructions**
+
+### Google Colab (Cloud-based)
 
 ```python
 # Install in Colab
