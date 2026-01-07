@@ -43,6 +43,11 @@ class InteractiveWarehouseApp:
     Provides a user-friendly interface for warehouse creation and visualization.
     """
     
+    # Position calculation constants
+    RACK_DEPTH_METERS = 5.0  # Meters of warehouse length per rack
+    SHELF_HEIGHT_METERS = 1.6  # Height per shelf level
+    MAX_REASONABLE_AISLES = 1000  # Maximum aisles for typical warehouse
+    
     def __init__(self):
         """Initialize the application"""
         self.twin = None
@@ -103,7 +108,7 @@ class InteractiveWarehouseApp:
             value=10,
             description='Aisles:',
             min=1,
-            max=10000,
+            max=self.MAX_REASONABLE_AISLES,
             step=1,
             style={'description_width': '150px'}
         )
@@ -280,6 +285,26 @@ class InteractiveWarehouseApp:
                 products = self._csv_to_products(df, num_aisles, length, width, height)
                 print(f"   Converted to {len(products)} products")
                 
+            except pd.errors.EmptyDataError:
+                print(f"⚠️ CSV file is empty")
+                print("   Falling back to sample data...")
+                products = self._generate_sample_products(
+                    self.num_sample_products.value, num_aisles, length, width, height
+                )
+            except pd.errors.ParserError as e:
+                print(f"⚠️ Error parsing CSV: {e}")
+                print("   Expected format: CSV with columns like 'item_id', 'category', 'description', 'stock_level', 'daily_demand'")
+                print("   Falling back to sample data...")
+                products = self._generate_sample_products(
+                    self.num_sample_products.value, num_aisles, length, width, height
+                )
+            except KeyError as e:
+                print(f"⚠️ Missing required column in CSV: {e}")
+                print("   Expected columns: item_id (optional), category, description, stock_level, daily_demand")
+                print("   Falling back to sample data...")
+                products = self._generate_sample_products(
+                    self.num_sample_products.value, num_aisles, length, width, height
+                )
             except Exception as e:
                 print(f"⚠️ Error loading CSV: {e}")
                 print("   Falling back to sample data...")
@@ -362,9 +387,10 @@ class InteractiveWarehouseApp:
                         warehouse_length: float, warehouse_width: float, 
                         warehouse_height: float) -> Position3D:
         """Assign a unique position to each product"""
-        racks_per_aisle = max(10, int(warehouse_length / 5))
+        # Calculate configuration based on warehouse dimensions
+        racks_per_aisle = max(10, int(warehouse_length / self.RACK_DEPTH_METERS))
         usable_height = warehouse_height * 0.8
-        shelves_per_rack = max(3, int(usable_height / 1.6))
+        shelves_per_rack = max(3, int(usable_height / self.SHELF_HEIGHT_METERS))
         
         products_per_aisle = racks_per_aisle * shelves_per_rack
         

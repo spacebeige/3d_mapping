@@ -31,6 +31,9 @@ class MovementAnimator:
     MEDIUM_COST_THRESHOLD = 10.0  # Yellow
     # Above medium = Red
     
+    # Trail visualization constants
+    MAX_TRAIL_POINTS = 20  # Maximum number of points in trail
+    
     def __init__(self):
         """Initialize movement animator"""
         self.animations = []
@@ -246,9 +249,11 @@ class MovementAnimator:
                 
                 # Trail
                 if frame_idx > 0:
+                    # Sample trail positions efficiently
+                    trail_sample_step = max(1, frame_idx // self.MAX_TRAIL_POINTS)
                     trail_positions = [
                         self._interpolate_position(route.waypoints, i / num_frames)
-                        for i in range(0, frame_idx, max(1, frame_idx // 20))
+                        for i in range(0, frame_idx, trail_sample_step)
                     ]
                     if trail_positions:
                         frame_data.append(go.Scatter3d(
@@ -348,9 +353,11 @@ class MovementAnimator:
             
             # Trail effect (path taken so far)
             if frame_idx > 0:
+                # Sample trail positions efficiently (avoid recomputing all positions)
+                trail_sample_step = max(1, frame_idx // self.MAX_TRAIL_POINTS)
                 trail_positions = [
                     self._interpolate_position(route.waypoints, i / num_frames)
-                    for i in range(0, frame_idx, max(1, frame_idx // 20))
+                    for i in range(0, frame_idx, trail_sample_step)
                 ]
                 
                 if trail_positions:
