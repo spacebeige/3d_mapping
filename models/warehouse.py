@@ -171,6 +171,21 @@ class WarehouseLayout(BaseModel):
         return v
 
 
+class AccessPoint(BaseModel):
+    """Entry or exit point for warehouse operations"""
+    id: str = Field(description="Unique access point identifier")
+    name: str = Field(description="Human-readable name")
+    type: Literal["entry", "exit"] = Field(description="Point type")
+    position: Position3D = Field(description="3D position in warehouse")
+    capabilities: List[str] = Field(
+        default_factory=list,
+        description="Capabilities: standard, fragile, heavy, bulk, express"
+    )
+    base_cost: float = Field(ge=0, description="Cost to use this access point")
+    capacity_per_hour: int = Field(gt=0, description="Throughput limit")
+    active: bool = Field(default=True, description="Whether point is active")
+
+
 class WarehouseConfig(BaseModel):
     """Complete warehouse configuration"""
     name: str = Field(description="Warehouse name/identifier")
@@ -356,21 +371,6 @@ class WarehouseConfig(BaseModel):
                 active=True
             )
         ]
-
-
-class AccessPoint(BaseModel):
-    """Entry or exit point for warehouse operations"""
-    id: str = Field(description="Unique access point identifier")
-    name: str = Field(description="Human-readable name")
-    type: Literal["entry", "exit"] = Field(description="Point type")
-    position: Position3D = Field(description="3D position in warehouse")
-    capabilities: List[str] = Field(
-        default_factory=list,
-        description="Capabilities: standard, fragile, heavy, bulk, express"
-    )
-    base_cost: float = Field(ge=0, description="Cost to use this access point")
-    capacity_per_hour: int = Field(gt=0, description="Throughput limit")
-    active: bool = Field(default=True, description="Whether point is active")
 
 
 class Product(BaseModel):
