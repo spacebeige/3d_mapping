@@ -58,11 +58,6 @@ class MovementAnimator:
         """
         num_frames = int(duration_seconds * frame_rate)
         
-        # Generate animation frames
-        frames = self._generate_frames(
-            product, route, warehouse_config, num_frames
-        )
-        
         # Create base figure
         fig = self._create_base_figure(warehouse_config)
         
@@ -72,8 +67,55 @@ class MovementAnimator:
         # Add access points
         self._add_access_points(fig, warehouse_config, route)
         
-        # Add initial product position
-        self._add_product_trace(fig, route.waypoints[0], product, route, 0)
+        # Add placeholder traces for animation (BEFORE generating frames)
+        cost_color = self._get_cost_color(route.total_cost)
+        
+        # Placeholder for product marker
+        fig.add_trace(go.Scatter3d(
+            x=[route.waypoints[0].x],
+            y=[route.waypoints[0].y],
+            z=[route.waypoints[0].z],
+            mode='markers+text',
+            marker=dict(
+                size=15,
+                color=cost_color,
+                symbol='diamond',
+                line=dict(color='white', width=2)
+            ),
+            text="$0.00",
+            textposition='top center',
+            name=product.item_id,
+            hovertemplate=(
+                f"<b>{product.item_id}</b><br>" +
+                f"Category: {product.category}<br>" +
+                f"Position: ({route.waypoints[0].x:.1f}, {route.waypoints[0].y:.1f}, {route.waypoints[0].z:.1f})<br>" +
+                f"Current Cost: $0.00<br>" +
+                f"Progress: 0%<br>" +
+                "<extra></extra>"
+            )
+        ))
+        marker_trace_idx = len(fig.data) - 1
+        
+        # Placeholder for trail (initially empty)
+        fig.add_trace(go.Scatter3d(
+            x=[], y=[], z=[],
+            mode='lines',
+            line=dict(
+                color=cost_color,
+                width=4,
+                dash='dot'
+            ),
+            name='Trail',
+            showlegend=False,
+            hoverinfo='skip'
+        ))
+        trail_trace_idx = len(fig.data) - 1
+        
+        # Generate animation frames with trace indices
+        frames = self._generate_frames(
+            product, route, warehouse_config, num_frames,
+            marker_trace_idx, trail_trace_idx
+        )
         
         # Add animation frames
         fig.frames = frames
@@ -127,6 +169,45 @@ class MovementAnimator:
         
         self._add_access_points(fig, warehouse_config, routes[0])
         
+        # Add placeholder traces for each product
+        trace_indices = []
+        for product, route in zip(products, routes):
+            cost_color = self._get_cost_color(route.total_cost)
+            
+            # Product marker placeholder
+            fig.add_trace(go.Scatter3d(
+                x=[route.waypoints[0].x],
+                y=[route.waypoints[0].y],
+                z=[route.waypoints[0].z],
+                mode='markers+text',
+                marker=dict(
+                    size=10,
+                    color=cost_color,
+                    symbol='diamond'
+                ),
+                text=f"${0:.2f}",
+                textposition='top center',
+                name=product.item_id
+            ))
+            marker_idx = len(fig.data) - 1
+            
+            # Trail placeholder (empty initially)
+            fig.add_trace(go.Scatter3d(
+                x=[], y=[], z=[],
+                mode='lines',
+                line=dict(
+                    color=cost_color,
+                    width=3,
+                    dash='dot'
+                ),
+                name=f'Trail-{product.item_id}',
+                showlegend=False,
+                hoverinfo='skip'
+            ))
+            trail_idx = len(fig.data) - 1
+            
+            trace_indices.append((marker_idx, trail_idx))
+        
         # Generate frames for each product
         frame_rate = 30
         num_frames = int(duration_seconds * frame_rate)
@@ -135,21 +216,78 @@ class MovementAnimator:
         frames = []
         for frame_idx in range(num_frames):
             frame_data = []
+            frame_traces = []
             
             # Add each product's position at this frame
-            for product, route in zip(products, routes):
+            for (product, route), (marker_idx, trail_idx) in zip(zip(products, routes), trace_indices):
+                progress = frame_idx / num_frames
                 position = self._interpolate_position(
-                    route.waypoints, frame_idx / num_frames
+                    route.waypoints, progress
                 )
+                current_cost = route.total_cost * progress
+                cost_color = self._get_cost_color(route.total_cost)
                 
-                # Create trace for this product at this frame
-                trace_data = self._create_product_frame_data(
-                    position, product, route, frame_idx, num_frames
-                )
-                frame_data.extend(trace_data)
+                # Product marker
+                frame_data.append(go.Scatter3d(
+                    x=[position.x],
+                    y=[position.y],
+                    z=[position.z],
+                    mode='markers+text',
+                    marker=dict(
+                        size=10,
+                        color=cost_color,
+                        symbol='diamond'
+                    ),
+                    text=f"${current_cost:.2f}",
+                    textposition='top center',
+                    name=product.item_id
+                ))
+                frame_traces.append(marker_idx)
+                
+                # Trail
+                if frame_idx > 0:
+                    trail_positions = [
+                        self._interpolate_position(route.waypoints, i / num_frames)
+                        for i in range(0, frame_idx, max(1, frame_idx // 20))
+                    ]
+                    if trail_positions:
+                        frame_data.append(go.Scatter3d(
+                            x=[p.x for p in trail_positions],
+                            y=[p.y for p in trail_positions],
+                            z=[p.z for p in trail_positions],
+                            mode='lines',
+                            line=dict(
+                                color=cost_color,
+                                width=3,
+                                dash='dot'
+                            ),
+                            name=f'Trail-{product.item_id}',
+                            showlegend=False,
+                            hoverinfo='skip'
+                        ))
+                    else:
+                        frame_data.append(go.Scatter3d(
+                            x=[], y=[], z=[],
+                            mode='lines',
+                            line=dict(color=cost_color, width=3, dash='dot'),
+                            name=f'Trail-{product.item_id}',
+                            showlegend=False,
+                            hoverinfo='skip'
+                        ))
+                else:
+                    frame_data.append(go.Scatter3d(
+                        x=[], y=[], z=[],
+                        mode='lines',
+                        line=dict(color=cost_color, width=3, dash='dot'),
+                        name=f'Trail-{product.item_id}',
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
+                frame_traces.append(trail_idx)
             
             frames.append(go.Frame(
                 data=frame_data,
+                traces=frame_traces,
                 name=f"frame_{frame_idx}"
             ))
         
@@ -163,9 +301,11 @@ class MovementAnimator:
         product: Product,
         route: OptimalRoute,
         warehouse_config: WarehouseConfig,
-        num_frames: int
+        num_frames: int,
+        marker_trace_idx: int,
+        trail_trace_idx: int
     ) -> List[go.Frame]:
-        """Generate animation frames"""
+        """Generate animation frames with proper trace indices"""
         frames = []
         
         for frame_idx in range(num_frames):
@@ -177,10 +317,10 @@ class MovementAnimator:
             # Calculate cost at this point
             current_cost = route.total_cost * progress
             
-            # Create frame
+            # Create frame data
             frame_data = []
             
-            # Product marker
+            # Product marker (always present)
             cost_color = self._get_cost_color(route.total_cost)
             frame_data.append(go.Scatter3d(
                 x=[position.x],
@@ -228,9 +368,25 @@ class MovementAnimator:
                         showlegend=False,
                         hoverinfo='skip'
                     ))
+            else:
+                # Add empty trail for first frame
+                frame_data.append(go.Scatter3d(
+                    x=[], y=[], z=[],
+                    mode='lines',
+                    line=dict(
+                        color=cost_color,
+                        width=4,
+                        dash='dot'
+                    ),
+                    name='Trail',
+                    showlegend=False,
+                    hoverinfo='skip'
+                ))
             
+            # Create frame with trace indices
             frames.append(go.Frame(
                 data=frame_data,
+                traces=[marker_trace_idx, trail_trace_idx],
                 name=f"frame_{frame_idx}",
                 layout=go.Layout(
                     title_text=f"Cost: ${current_cost:.2f} / ${route.total_cost:.2f}"
@@ -417,26 +573,6 @@ class MovementAnimator:
                     )
                 ))
     
-    def _add_product_trace(
-        self, fig: go.Figure, position: Position3D, product: Product,
-        route: OptimalRoute, frame_idx: int
-    ):
-        """Add initial product trace"""
-        cost_color = self._get_cost_color(route.total_cost)
-        
-        fig.add_trace(go.Scatter3d(
-            x=[position.x],
-            y=[position.y],
-            z=[position.z],
-            mode='markers',
-            marker=dict(
-                size=15,
-                color=cost_color,
-                symbol='diamond'
-            ),
-            name=product.item_id
-        ))
-    
     def _add_animation_controls(self, fig: go.Figure, duration_seconds: float):
         """Add play/pause controls and speed slider"""
         fig.update_layout(
@@ -509,30 +645,3 @@ class MovementAnimator:
             return 'yellow'
         else:
             return 'red'
-    
-    def _create_product_frame_data(
-        self,
-        position: Position3D,
-        product: Product,
-        route: OptimalRoute,
-        frame_idx: int,
-        num_frames: int
-    ) -> List:
-        """Create frame data for a product"""
-        progress = frame_idx / num_frames
-        current_cost = route.total_cost * progress
-        cost_color = self._get_cost_color(route.total_cost)
-        
-        return [go.Scatter3d(
-            x=[position.x],
-            y=[position.y],
-            z=[position.z],
-            mode='markers',
-            marker=dict(
-                size=10,
-                color=cost_color,
-                symbol='diamond'
-            ),
-            name=product.item_id,
-            text=f"${current_cost:.2f}"
-        )]
