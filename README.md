@@ -65,6 +65,37 @@ python interactive_warehouse.py
 
 👉 **See [INTERACTIVE_GUIDE.md](INTERACTIVE_GUIDE.md) for complete step-by-step guide**
 
+### 🎨 Interactive Warehouse Builder GUI (New!)
+
+**Perfect for Jupyter, Colab, and VS Code!**
+
+Build your warehouse using a beautiful GUI with widgets:
+
+```python
+# In Jupyter Notebook, JupyterLab, Google Colab, or VS Code
+from interactive_warehouse_gui import InteractiveWarehouseApp
+
+app = InteractiveWarehouseApp()
+app.display()
+```
+
+**Features:**
+- 🎛️ **Visual controls** - Sliders and input fields for warehouse parameters
+- 📁 **CSV Upload** - Drag-and-drop CSV files with product data
+- 🎨 **Instant visualization** - Click "Generate" to see results
+- 💾 **Auto-save** - Automatically saves HTML and CSV files
+- 🌐 **Colab Compatible** - Works seamlessly in Google Colab
+- 🖥️ **VS Code Ready** - Perfect for VS Code Jupyter extension
+
+**GUI includes:**
+- Warehouse name, length, width, height, and aisle count inputs
+- CSV file uploader for product data
+- Sample product generator (if no CSV provided)
+- One-click "Generate Warehouse" button
+- Real-time progress indicators
+- Product summary table
+- Download links for generated files
+
 ### 📓 Full Demo with Advanced Features
 
 Run the complete demo with interactive widgets:
@@ -506,6 +537,16 @@ Storage location IDs (e.g., "L195") are automatically mapped to 3D coordinates:
 
 ### Animated Product Movement
 
+**Enhanced Animation System (v2.0)**
+
+The animation system now properly handles frame updates without overwriting base figure traces:
+
+**Key improvements:**
+- ✅ **Fixed trace overwriting** - Placeholder traces are added to base figure before animation
+- ✅ **Precise frame updates** - Frames specify exact trace indices to update
+- ✅ **Multi-product support** - Multiple products can be animated simultaneously
+- ✅ **Smooth transitions** - Interpolated movement along waypoints
+
 Create animated visualizations showing:
 - Product moving from shelf → exit
 - Color-coded path (green/yellow/red based on cost)
@@ -525,6 +566,11 @@ fig = animator.animate_product_movement(
 )
 fig.write_html("movement_animation.html")
 ```
+
+**Technical details:**
+- Placeholder traces for marker and trail are added to base figure first
+- Frame data updates only the placeholder traces using the `traces` parameter
+- This prevents animation from overwriting warehouse structure (walls, floor, access points)
 
 ### Cost Heatmap
 

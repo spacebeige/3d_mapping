@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Interactive Warehouse Builder
+Interactive Warehouse Builder (CLI Version)
 
 This script provides an interactive command-line interface for:
 1. Defining warehouse dimensions
@@ -9,6 +9,9 @@ This script provides an interactive command-line interface for:
 4. Saving all data to files
 
 Each product gets a unique ID and position automatically!
+
+NOTE: For a GUI version with widgets (Jupyter/Colab/VS Code), see:
+      interactive_warehouse_gui.py
 """
 
 import sys
