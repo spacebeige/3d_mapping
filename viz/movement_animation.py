@@ -284,7 +284,7 @@ class MovementAnimator:
             frames.append(go.Frame(
                 data=frame_data,
                 name=f"frame_{frame_idx}",
-                traces=[product_trace_idx, trail_trace_idx],  # Specify which traces to update
+                traces=[product_trace_idx, trail_trace_idx],  # Indices of traces to replace with frame data
                 layout=go.Layout(
                     title_text=f"Cost: ${current_cost:.2f} / ${route.total_cost:.2f}"
                 )

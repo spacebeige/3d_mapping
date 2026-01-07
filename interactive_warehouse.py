@@ -15,6 +15,7 @@ import sys
 import traceback
 from pathlib import Path
 import io
+import tempfile
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -36,6 +37,13 @@ except ImportError:
     print("⚠️ ipywidgets not available. GUI will not work.")
     print("   Install with: pip install ipywidgets ipython")
     print("   For Jupyter Lab: jupyter labextension install @jupyter-widgets/jupyterlab-manager")
+
+# Import CSV loader at module level
+try:
+    from utils.csv_loader import CSVLoader
+    CSV_LOADER_AVAILABLE = True
+except ImportError:
+    CSV_LOADER_AVAILABLE = False
 
 
 def assign_position(product_index, total_aisles, warehouse_length, warehouse_width, warehouse_height):
@@ -461,12 +469,26 @@ def create_gui():
                         print(f"✅ CSV loaded: {len(csv_data)} rows")
                         
                         # Convert CSV to products
-                        from utils.csv_loader import CSVLoader
-                        csv_loader = CSVLoader()
-                        
-                        # Save temporarily and load
-                        csv_data.to_csv('/tmp/temp_upload.csv', index=False)
-                        products = csv_loader.load_products('/tmp/temp_upload.csv')
+                        if not CSV_LOADER_AVAILABLE:
+                            print("⚠️ CSV loader not available, generating sample products instead")
+                            products = []
+                        else:
+                            csv_loader = CSVLoader()
+                            
+                            # Save temporarily and load (cross-platform)
+                            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as tmp_file:
+                                tmp_path = tmp_file.name
+                                csv_data.to_csv(tmp_path, index=False)
+                            
+                            try:
+                                products = csv_loader.load_products(tmp_path)
+                            finally:
+                                # Clean up temp file
+                                import os
+                                try:
+                                    os.unlink(tmp_path)
+                                except:
+                                    pass
                         
                         print(f"✅ Loaded {len(products)} products from CSV")
                         
