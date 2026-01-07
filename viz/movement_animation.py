@@ -66,6 +66,18 @@ class MovementAnimator:
         
         # Add access points
         self._add_access_points(fig, warehouse_config, route)
+
+        # Add static route path for context
+        if route.waypoints:
+            fig.add_trace(go.Scatter3d(
+                x=[p.x for p in route.waypoints],
+                y=[p.y for p in route.waypoints],
+                z=[p.z for p in route.waypoints],
+                mode='lines',
+                line=dict(color=self._get_cost_color(route.total_cost), width=6),
+                name='Route Path',
+                hoverinfo='skip'
+            ))
         
         # Add placeholder traces for animation (product marker and trail)
         # These will be updated by the animation frames
@@ -221,7 +233,10 @@ class MovementAnimator:
         frames = []
         
         for frame_idx in range(num_frames):
-            progress = frame_idx / num_frames
+            if num_frames <= 1:
+                progress = 1.0
+            else:
+                progress = frame_idx / (num_frames - 1)
             
             # Interpolate position along waypoints
             position = self._interpolate_position(route.waypoints, progress)
@@ -262,7 +277,10 @@ class MovementAnimator:
             trail_positions = []
             if frame_idx > 0:
                 trail_positions = [
-                    self._interpolate_position(route.waypoints, i / num_frames)
+                    self._interpolate_position(
+                        route.waypoints,
+                        i / (num_frames - 1) if num_frames > 1 else 1.0
+                    )
                     for i in range(0, frame_idx, max(1, frame_idx // 20))
                 ]
             
