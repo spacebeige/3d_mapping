@@ -39,29 +39,44 @@ A comprehensive **Digital Twin** system for warehouse optimization with advanced
 
 ## 🚀 Quick Start
 
-### 🆕 Interactive Warehouse Builder (Perfect for Beginners!)
+### 🆕 Interactive Warehouse Builder with GUI (Perfect for Beginners!)
 
-Build your custom warehouse step-by-step with guided prompts:
+Build your custom warehouse with an easy-to-use graphical interface:
 
 ```bash
 # Clone repository
 git clone https://github.com/spacebeige/3d_mapping.git
 cd 3d_mapping
 
-# Option 1: Interactive Jupyter Notebook (Recommended)
+# Install dependencies
 pip install -r requirements.txt
-jupyter notebook examples/interactive_warehouse.ipynb
 
-# Option 2: Command-line script
+# Option 1: GUI Mode in Jupyter Notebook (Recommended)
+jupyter notebook interactive_warehouse.py
+# Or open examples/interactive_warehouse.ipynb
+
+# Option 2: Command-line mode (for terminal use)
 python interactive_warehouse.py
 ```
 
-**What it does:**
-1. 📏 **Prompts for warehouse dimensions** - Length, width, height, aisles
-2. 📦 **Add products one by one** - Enter each product interactively
-3. 🎯 **Automatic unique positioning** - Each product gets a unique (x, y, z) position
-4. 🎨 **3D visualization** - See your warehouse with all products displayed
-5. 💾 **Download files** - Get HTML visualizations and CSV data
+**✨ New GUI Features:**
+1. 📐 **Interactive Input Widgets** - Easy-to-use sliders and text boxes for warehouse dimensions
+2. 📁 **CSV Upload Support** - Upload your own product data via file picker widget
+3. 🎯 **One-Click Generation** - Generate your warehouse with a single button click
+4. 🎨 **Automatic Visualization** - Instantly see your 3D warehouse after generation
+5. ⚡ **Real-time Preview** - View product data tables directly in the notebook
+6. 🔄 **Error Handling** - Graceful error messages and fallback to sample data
+7. 💻 **Works Everywhere** - Compatible with Google Colab, Jupyter, and VS Code notebooks
+
+**What the GUI includes:**
+- Warehouse name input
+- Dimension inputs (Length, Width, Height in meters)
+- Number of aisles selector
+- CSV file upload button (optional - will generate sample products if not provided)
+- "Generate Digital Twin" button to create your warehouse
+
+**CSV Upload Format:**
+Upload a CSV file with product data including columns like `item_id`, `category`, `description`, `stock_level`, `daily_demand`, etc. If no CSV is uploaded, the system automatically generates sample products.
 
 👉 **See [INTERACTIVE_GUIDE.md](INTERACTIVE_GUIDE.md) for complete step-by-step guide**
 
@@ -97,14 +112,30 @@ jupyter notebook examples/warehouse_demo.ipynb
 
 👉 **See [examples/README.md](examples/README.md) for detailed usage instructions**
 
-### Google Colab (Cloud-based)
+### 🌐 Google Colab (Cloud-based, Recommended for GUI!)
+
+Run the interactive GUI warehouse builder directly in Google Colab:
 
 ```python
-# Install in Colab
+# 1. Install in Colab
 !git clone https://github.com/spacebeige/3d_mapping.git
 %cd 3d_mapping
 !pip install -r requirements.txt
 
+# 2. Launch GUI interface
+from interactive_warehouse import create_gui
+create_gui()
+
+# The GUI will appear with:
+# - Input fields for warehouse dimensions
+# - CSV upload button (optional)
+# - Generate button to create your warehouse
+# - Live output and product preview
+```
+
+**For advanced programmatic usage:**
+
+```python
 # Import and initialize
 from main import WarehouseDigitalTwin, generate_sample_data
 
@@ -143,7 +174,34 @@ dashboard = twin.create_dashboard()
 dashboard.show()
 ```
 
-### Local Installation
+### 💻 VS Code (Local Development)
+
+The GUI works seamlessly in VS Code with the Jupyter extension:
+
+```bash
+# 1. Clone and setup
+git clone https://github.com/spacebeige/3d_mapping.git
+cd 3d_mapping
+pip install -r requirements.txt
+
+# 2. Open in VS Code
+code .
+
+# 3. Open interactive_warehouse.py as a Jupyter notebook
+# - Right-click the file → "Open With" → "Jupyter Notebook"
+# - Or use the "Select Notebook Kernel" command
+
+# 4. Run the cells to launch the GUI
+```
+
+**VS Code Requirements:**
+- Install the [Jupyter extension](https://marketplace.visualstudio.com/items?itemName=ms-toolsai.jupyter)
+- Install the [Python extension](https://marketplace.visualstudio.com/items?itemName=ms-python.python)
+- Install ipywidgets: `pip install ipywidgets ipython`
+
+The interactive GUI will render directly in VS Code's notebook interface!
+
+### Local Installation (Command-line)
 
 ```bash
 # Clone repository
