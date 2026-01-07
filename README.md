@@ -39,7 +39,33 @@ A comprehensive **Digital Twin** system for warehouse optimization with advanced
 
 ## 🚀 Quick Start
 
-### 📓 Interactive Jupyter Notebook (Easiest!)
+### 🆕 Interactive Warehouse Builder (Perfect for Beginners!)
+
+Build your custom warehouse step-by-step with guided prompts:
+
+```bash
+# Clone repository
+git clone https://github.com/spacebeige/3d_mapping.git
+cd 3d_mapping
+
+# Option 1: Interactive Jupyter Notebook (Recommended)
+pip install -r requirements.txt
+jupyter notebook examples/interactive_warehouse.ipynb
+
+# Option 2: Command-line script
+python interactive_warehouse.py
+```
+
+**What it does:**
+1. 📏 **Prompts for warehouse dimensions** - Length, width, height, aisles
+2. 📦 **Add products one by one** - Enter each product interactively
+3. 🎯 **Automatic unique positioning** - Each product gets a unique (x, y, z) position
+4. 🎨 **3D visualization** - See your warehouse with all products displayed
+5. 💾 **Download files** - Get HTML visualizations and CSV data
+
+👉 **See [INTERACTIVE_GUIDE.md](INTERACTIVE_GUIDE.md) for complete step-by-step guide**
+
+### 📓 Full Demo with Advanced Features
 
 Run the complete demo with interactive widgets:
 
