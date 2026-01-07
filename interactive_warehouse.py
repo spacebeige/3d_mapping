@@ -40,22 +40,30 @@ def assign_position(product_index, total_aisles, warehouse_length, warehouse_wid
     Returns:
         Position3D object with unique coordinates
     """
-    # Calculate distribution
-    products_per_aisle = 100  # Estimated products per aisle
-    shelves_per_rack = 5
+    # Calculate configuration based on warehouse dimensions
+    # More racks for longer warehouses (1 rack per 5m of length)
+    racks_per_aisle = max(10, int(warehouse_length / 5))
     
+    # More shelves for taller warehouses (1 shelf per 1.6m of usable height)
+    usable_height = warehouse_height * 0.8  # 80% of height is usable
+    shelves_per_rack = max(3, int(usable_height / 1.6))
+    
+    # Products capacity per aisle
+    products_per_aisle = racks_per_aisle * shelves_per_rack
+    
+    # Calculate which aisle, rack, and shelf
     aisle_num = (product_index // products_per_aisle) % total_aisles
     rack_num = (product_index % products_per_aisle) // shelves_per_rack
     shelf_num = product_index % shelves_per_rack
     
-    # Calculate position
+    # Calculate 3D position
     aisle_spacing = warehouse_width / (total_aisles + 1)
     x = aisle_spacing * (aisle_num + 1)
     
-    rack_spacing = warehouse_length / 20  # Assume 20 racks per aisle
+    rack_spacing = warehouse_length / racks_per_aisle
     y = rack_spacing * (rack_num + 0.5)
     
-    shelf_height = warehouse_height * 0.8 / shelves_per_rack
+    shelf_height = usable_height / shelves_per_rack
     z = shelf_height * (shelf_num + 0.5)
     
     return Position3D(x=x, y=y, z=z)
