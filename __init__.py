@@ -12,7 +12,11 @@ __version__ = "0.1.0"
 __author__ = "SpaceBeige Team"
 
 # Expose main classes at package level
-from .main import WarehouseDigitalTwin, generate_sample_data
+try:
+    from .main import WarehouseDigitalTwin, generate_sample_data
+except ImportError:
+    # Fallback for direct module execution without package context
+    from main import WarehouseDigitalTwin, generate_sample_data
 
 __all__ = [
     "WarehouseDigitalTwin",

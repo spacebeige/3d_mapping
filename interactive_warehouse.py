@@ -118,24 +118,43 @@ def get_warehouse_dimensions():
     print("=" * 50)
     
     warehouse_name = input("Enter warehouse name (default: My Distribution Center): ").strip() or "My Distribution Center"
-    
-    try:
-        length = float(input("Enter warehouse length in meters (default: 100): ") or "100")
-        width = float(input("Enter warehouse width in meters (default: 80): ") or "80")
-        height = float(input("Enter warehouse height in meters (default: 10): ") or "10")
-        num_aisles = int(input("Enter number of aisles (default: 10): ") or "10")
-    except ValueError as e:
-        print(f"❌ Invalid input for warehouse configuration.")
-        print("   Please enter positive numbers for length, width, and height, and a positive integer for aisles.")
-        print(f"   Details: {e}")
-        print("Using default values for all dimensions and aisles...")
-        length, width, height, num_aisles = 100, 80, 10, 10
-    
-    # Validate that all dimensions and aisle count are positive
-    if length <= 0 or width <= 0 or height <= 0 or num_aisles <= 0:
-        print("❌ Invalid configuration: dimensions and number of aisles must be positive.")
-        print("Using default values...")
-        length, width, height, num_aisles = 100, 80, 10, 10
+
+    def _prompt_float(prompt: str) -> float:
+        """Prompt user for a positive float without falling back to defaults"""
+        while True:
+            raw_value = input(prompt).strip()
+            if not raw_value:
+                print("❌ A value is required. Please enter a number.")
+                continue
+            try:
+                value = float(raw_value)
+                if value <= 0:
+                    print("❌ Please enter a positive number.")
+                    continue
+                return value
+            except ValueError:
+                print("❌ Invalid number. Please try again.")
+
+    def _prompt_int(prompt: str) -> int:
+        """Prompt user for a positive integer without falling back to defaults"""
+        while True:
+            raw_value = input(prompt).strip()
+            if not raw_value:
+                print("❌ A value is required. Please enter a whole number.")
+                continue
+            try:
+                value = int(raw_value)
+                if value <= 0:
+                    print("❌ Please enter a positive integer.")
+                    continue
+                return value
+            except ValueError:
+                print("❌ Invalid number. Please try again.")
+
+    length = _prompt_float("Enter warehouse length in meters: ")
+    width = _prompt_float("Enter warehouse width in meters: ")
+    height = _prompt_float("Enter warehouse height in meters: ")
+    num_aisles = _prompt_int("Enter number of aisles: ")
     
     print("\n📊 Warehouse Configuration:")
     print(f"   Name: {warehouse_name}")
