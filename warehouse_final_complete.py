@@ -9,26 +9,25 @@ The script keeps the familiar prompts from earlier versions while
 handling dimension attributes safely to avoid AttributeErrors.
 """
 
-import os
 import sys
 import traceback
 from pathlib import Path
 from typing import List, Tuple
-
-import pandas as pd
 
 # Ensure repository root is importable when the script is executed directly
 PROJECT_ROOT = Path(__file__).parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from interactive_warehouse import assign_position, determine_zone  # type: ignore
+from interactive_warehouse import assign_position, determine_zone
 from main import WarehouseDigitalTwin, generate_sample_data
-from models.warehouse import Position3D, Product, ZoneType
+from models import Position3D, Product
 from routing.cost_optimizer import CostOptimizedRouter
 from utils.csv_loader import CSVLoader
 from viz.movement_animation import MovementAnimator
 from viz.warehouse_3d import Warehouse3DVisualizer
+
+SHELF_BASE_OFFSET = 100
 
 
 def _safe_dimensions(warehouse) -> Tuple[float, float, float, int]:
@@ -50,14 +49,15 @@ def _safe_dimensions(warehouse) -> Tuple[float, float, float, int]:
     height = float(height or 12.0)
 
     layout = getattr(warehouse, "layout", None)
-    aisles = getattr(layout, "num_aisles", 20)
+    aisles = getattr(layout, "num_aisles", 50)
 
-    return length, width, height, int(aisles)
+    return length, width, height, max(int(aisles), 1)
 
 
 def _load_products_from_csv(csv_path: str, warehouse) -> List[Product]:
     """Load products from CSV with 3D positions preserved."""
-    loader = CSVLoader({"dimensions": getattr(warehouse, "dimensions", {})})
+    dims = getattr(warehouse, "dimensions", None)
+    loader = CSVLoader({"dimensions": dims} if dims is not None else None)
     products = loader.load_products(csv_path)
     return products
 
@@ -70,12 +70,10 @@ def _generate_sample_products(
     Uses the same placement and zone rules as the interactive UI.
     """
     df = generate_sample_data(num_products)
-    _, _, height, aisles = _safe_dimensions(warehouse)
-    length = getattr(warehouse, "warehouse_length", 200.0)
-    width = getattr(getattr(warehouse, "dimensions", None), "width", 150.0)
+    length, width, height, aisles = _safe_dimensions(warehouse)
 
     products: List[Product] = []
-    for idx, row in df.iterrows():
+    for idx, row in enumerate(df.itertuples(index=False), start=0):
         pos = assign_position(
             idx,
             aisles,
@@ -83,23 +81,24 @@ def _generate_sample_products(
             width,
             height,
         )
-        zone = determine_zone(row.get("daily_demand", 0))
+        zone = determine_zone(getattr(row, "daily_demand", 0))
+        rack_slot = (idx % aisles) + 1
         products.append(
             Product(
-                item_id=row["item_id"],
-                category=row["category"],
-                description=row["description"],
-                stock_level=int(row["stock_level"]),
-                daily_demand=int(row["daily_demand"]),
-                profit_per_unit=float(row.get("profit_per_unit", 50.0)),
-                holding_cost_per_unit_day=float(row.get("holding_cost_per_unit_day", 0.15)),
-                turnover_ratio=float(row.get("turnover_ratio", 2.5)),
-                size_score=float(row.get("size_score", 3.0)),
+                item_id=row.item_id,
+                category=row.category,
+                description=row.description,
+                stock_level=int(row.stock_level),
+                daily_demand=int(row.daily_demand),
+                profit_per_unit=float(getattr(row, "profit_per_unit", 50.0)),
+                holding_cost_per_unit_day=float(getattr(row, "holding_cost_per_unit_day", 0.15)),
+                turnover_ratio=float(getattr(row, "turnover_ratio", 2.5)),
+                size_score=float(getattr(row, "size_score", 3.0)),
                 predicted_zone=zone,
                 final_zone=zone,
                 position=pos,
-                shelf=f"L{100 + idx}",
-                rack_id=f"R{1 + idx % max(aisles, 1)}",
+                shelf=f"L{SHELF_BASE_OFFSET + idx}",
+                rack_id=f"R{rack_slot}",
             )
         )
     return products
@@ -122,6 +121,10 @@ def _build_visuals(warehouse, products: List[Product]):
     empty_fig.write_html(empty_path)
     print(f"   ✅ Empty 3D map saved to: {empty_path}")
 
+    if not products:
+        print("   ⚠️ No products available; skipping filled map and animation.")
+        return
+
     # 2) Filled map
     filled_fig = visualizer.create_visualization(
         products=products,
@@ -133,9 +136,13 @@ def _build_visuals(warehouse, products: List[Product]):
     print(f"   ✅ Filled 3D map saved to: {filled_path}")
 
     # 3) Animated movement for the first/highest-demand product
-    focus_product = sorted(
+    sorted_products = sorted(
         products, key=lambda p: getattr(p, "daily_demand", 0), reverse=True
-    )[0]
+    )
+    focus_product = next(iter(sorted_products), None)
+    if focus_product is None:
+        print("   ⚠️ No products available after sorting; skipping animation.")
+        return
     router = CostOptimizedRouter(warehouse)
     route = router.find_optimal_route(
         product=focus_product,
@@ -168,13 +175,39 @@ def main():
     print("🏭  WAREHOUSE 3D UI - FINAL COMPLETE EDITION")
     print("=" * 70)
 
+    def _prompt_positive_float(prompt_text: str, default: float) -> float:
+        while True:
+            raw = input(prompt_text).strip()
+            if not raw:
+                return float(default)
+            try:
+                value = float(raw)
+                if value > 0:
+                    return value
+                print("❌ Please enter a positive number.")
+            except ValueError:
+                print("❌ Invalid number. Please try again.")
+
+    def _prompt_positive_int(prompt_text: str, default: int) -> int:
+        while True:
+            raw = input(prompt_text).strip()
+            if not raw:
+                return int(default)
+            try:
+                value = int(raw)
+                if value > 0:
+                    return value
+                print("❌ Please enter a positive integer.")
+            except ValueError:
+                print("❌ Invalid number. Please try again.")
+
     # 1) Dimensions
     use_custom = input("\n[1] Customize dimensions? (y/n) [n]: ").lower().strip()
     if use_custom == "y":
-        length = float(input("    Length (m): ") or 200)
-        width = float(input("    Width (m):  ") or 150)
-        height = float(input("    Height (m): ") or 12)
-        aisles = int(input("    Aisles:      ") or 50)
+        length = _prompt_positive_float("    Length (m): ", 200)
+        width = _prompt_positive_float("    Width (m):  ", 150)
+        height = _prompt_positive_float("    Height (m): ", 12)
+        aisles = _prompt_positive_int("    Aisles:      ", 50)
     else:
         length, width, height, aisles = 200.0, 150.0, 12.0, 50
 
@@ -194,15 +227,21 @@ def main():
     warehouse.add_default_access_points()
 
     if use_csv == "y":
-        csv_path = (
-            input("    📂 CSV Path: ").strip().strip("'").strip('"').strip()
-        )
-        if not csv_path:
+        raw_csv = input("    📂 CSV Path: ").strip().strip("'\"")
+        if not raw_csv:
             sys.exit("❌ No CSV path provided.")
-        if not os.path.exists(csv_path):
+        csv_path = Path(raw_csv).expanduser().resolve()
+
+        repo_root = PROJECT_ROOT.resolve()
+        try:
+            csv_path.relative_to(repo_root)
+        except ValueError:
+            sys.exit("❌ CSV path must be inside the repository directory.")
+
+        if not csv_path.exists() or not csv_path.is_file():
             sys.exit(f"❌ File not found: {csv_path}")
 
-        products = _load_products_from_csv(csv_path, warehouse)
+        products = _load_products_from_csv(str(csv_path), warehouse)
         print(f"    ✅ Loaded {len(products)} products from CSV.")
     else:
         print("    🎲 Generating sample positioned data...")
