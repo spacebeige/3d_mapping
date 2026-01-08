@@ -125,48 +125,49 @@ def _build_visuals(warehouse, products: List[Product]):
         print("   ⚠️ No products available; skipping filled map and animation.")
         return
 
-    # 2) Filled map
+    # 2) Filled map with enhanced hover tooltips
+    # We'll modify the visualizer to add detailed hover information
     filled_fig = visualizer.create_visualization(
         products=products,
         show_products=True,
         show_access_points=True,
     )
+    
     filled_path = PROJECT_ROOT / "warehouse_filled_map.html"
     filled_fig.write_html(filled_path)
     print(f"   ✅ Filled 3D map saved to: {filled_path}")
 
-    # 3) Animated movement for the first/highest-demand product
+    # 3) Animated movement for multiple products
     sorted_products = sorted(
         products, key=lambda p: getattr(p, "daily_demand", 0), reverse=True
     )
-    focus_product = next(iter(sorted_products), None)
-    if focus_product is None:
-        print("   ⚠️ No products available after sorting; skipping animation.")
-        return
-    router = CostOptimizedRouter(warehouse)
-    route = router.find_optimal_route(
-        product=focus_product,
-        start_position=focus_product.position or Position3D(x=0, y=0, z=0),
-        operation="retrieve",
-    )
-
-    # Guarantee waypoints exist for animation
-    if not route.waypoints:
-        route.waypoints = [
-            route.start_position,
-            route.end_position,
-        ]
+    top_products = sorted_products[:5]  # Animate top 5 products by demand
 
     animator = MovementAnimator()
-    anim_fig = animator.animate_product_movement(
-        product=focus_product,
-        route=route,
-        warehouse_config=warehouse,
-        duration_seconds=6.0,
-    )
-    anim_path = PROJECT_ROOT / "warehouse_movement_animation.html"
-    anim_fig.write_html(anim_path)
-    print(f"   ✅ Animated movement saved to: {anim_path}")
+    for product in top_products:
+        router = CostOptimizedRouter(warehouse)
+        route = router.find_optimal_route(
+            product=product,
+            start_position=product.position or Position3D(x=0, y=0, z=0),
+            operation="retrieve",
+        )
+
+        # Guarantee waypoints exist for animation
+        if not route.waypoints:
+            route.waypoints = [
+                route.start_position,
+                route.end_position,
+            ]
+
+        anim_fig = animator.animate_product_movement(
+            product=product,
+            route=route,
+            warehouse_config=warehouse,
+            duration_seconds=6.0,
+        )
+        anim_path = PROJECT_ROOT / f"warehouse_movement_animation_{product.item_id}.html"
+        anim_fig.write_html(anim_path)
+        print(f"   ✅ Animated movement for product {product.item_id} saved to: {anim_path}")
 
 
 def main():
