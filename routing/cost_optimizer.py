@@ -93,7 +93,16 @@ class CostOptimizedRouter:
         
         # Initialize pathfinding grid if needed
         try:
-            self.agv_pathfinder = generate_warehouse_navigation_grid(warehouse_config)
+            # Extract required arguments from warehouse_config
+            length = getattr(warehouse_config, 'warehouse_length', None)
+            width = getattr(warehouse_config.dimensions, 'width', None)
+            num_aisles = getattr(warehouse_config.layout, 'num_aisles', None)
+            aisle_width = getattr(warehouse_config.layout, 'aisle_width', None)
+            if None in (length, width, num_aisles, aisle_width):
+                raise ValueError("Missing required warehouse configuration for pathfinding grid.")
+            self.agv_pathfinder = generate_warehouse_navigation_grid(
+                length, width, num_aisles, aisle_width
+            )
         except Exception as e:
             print(f"⚠️ Warning: Could not initialize pathfinding: {e}")
     

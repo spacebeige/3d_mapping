@@ -1,0 +1,163 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic Cost Heatmap Visualization</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; background: #f4f4f4; }
+        #container { width: 100vw; height: 100vh; display: flex; flex-direction: column; }
+        #controls { padding: 16px; background: #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        #visualization { flex: 1; background: #222; position: relative; }
+        .button { padding: 8px 16px; margin-right: 8px; border: none; background: #e67e22; color: #fff; border-radius: 4px; cursor: pointer; }
+        .button:disabled { background: #aaa; }
+        select { padding: 6px; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controls">
+            <label for="metric">Metric:</label>
+            <select id="metric">
+                <option value="mat_cost">Total Cost (demand * profit)</option>
+                <option value="mat_demand">Daily Demand</option>
+                <option value="mat_profit">Avg Profit/Unit</option>
+            </select>
+            <button class="button" id="playBtn">Play Animation</button>
+            <button class="button" id="pauseBtn" disabled>Pause</button>
+            <button class="button" id="resetBtn">Reset</button>
+            <button class="button" id="download">Download PNG</button>
+            <span id="status">Status: Ready</span>
+        </div>
+        <div id="visualization">
+            <!-- Dynamic heatmap will be rendered here -->
+            <canvas id="heatmapCanvas" width="1200" height="700"></canvas>
+        </div>
+    </div>
+    <script>
+        // Example product data (replace with dynamic updates as needed)
+        const productData = {
+            x_labels: ["Aisle 0", "Aisle 1", "Aisle 2", "Aisle 3", "Aisle 4", "Aisle 5"],
+            y_labels: ["Level 0"],
+            mat_demand: [[0.0, 0.0, 0.0, 160649.0, 0.0, 0.0]],
+            mat_profit: [[0.0, 0.0, 0.0, 60.85684080000011, 0.0, 0.0]],
+            mat_cost: [[0.0, 0.0, 0.0, 9776590.617679218, 0.0, 0.0]]
+        };
+
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const resetBtn = document.getElementById('resetBtn');
+        const downloadBtn = document.getElementById('download');
+        const status = document.getElementById('status');
+        const metricSelect = document.getElementById('metric');
+        const canvas = document.getElementById('heatmapCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let animationActive = false;
+        let animationFrame = 0;
+        let animationId = null;
+        let currentMetric = metricSelect.value;
+
+        function getColor(value, metric) {
+            // Simple color scale: value mapped to red intensity
+            let max = 1;
+            if (metric === 'mat_cost') max = 1e7;
+            if (metric === 'mat_demand') max = 2e5;
+            if (metric === 'mat_profit') max = 100;
+            const norm = Math.min(1, Math.abs(value) / max);
+            return `rgba(${Math.floor(255 * norm)}, 80, 40, 0.8)`;
+        }
+
+        function drawHeatmap(frame) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const z = productData[currentMetric];
+            const xLabels = productData.x_labels;
+            const yLabels = productData.y_labels;
+            const cellW = Math.max(75, Math.floor((canvas.width - 200) / xLabels.length));
+            const cellH = Math.max(45, Math.floor((canvas.height - 200) / yLabels.length));
+            for (let i = 0; i < xLabels.length; i++) {
+                for (let j = 0; j < yLabels.length; j++) {
+                    let value = (z[j] && z[j][i]) ? z[j][i] : 0;
+                    // Animate: add a small oscillation for demo
+                    value = value * (1 + 0.1 * Math.sin((frame + i + j) * 0.2));
+                    ctx.fillStyle = getColor(value, currentMetric);
+                    ctx.fillRect(100 + i * cellW, 100 + j * cellH, cellW - 5, cellH - 5);
+                    ctx.fillStyle = '#fff';
+                    ctx.font = '16px Arial';
+                    ctx.fillText(value.toFixed(2), 110 + i * cellW, 130 + j * cellH);
+                }
+            }
+            // Draw axis labels
+            ctx.fillStyle = '#fff';
+            ctx.font = '18px Arial';
+            for (let i = 0; i < xLabels.length; i++) {
+                ctx.fillText(xLabels[i], 110 + i * cellW, 90);
+            }
+            for (let j = 0; j < yLabels.length; j++) {
+                ctx.fillText(yLabels[j], 40, 130 + j * cellH);
+            }
+            ctx.font = '24px Arial';
+            ctx.fillText('Dynamic Cost Heatmap', 400, 50);
+        }
+
+        function animate() {
+            if (!animationActive) return;
+            drawHeatmap(animationFrame);
+            animationFrame++;
+            status.textContent = `Status: Playing (Frame ${animationFrame})`;
+            animationId = requestAnimationFrame(animate);
+        }
+
+        playBtn.onclick = () => {
+            animationActive = true;
+            playBtn.disabled = true;
+            pauseBtn.disabled = false;
+            animate();
+        };
+        pauseBtn.onclick = () => {
+            animationActive = false;
+            playBtn.disabled = false;
+            pauseBtn.disabled = true;
+            status.textContent = 'Status: Paused';
+            if (animationId) cancelAnimationFrame(animationId);
+        };
+        resetBtn.onclick = () => {
+            animationActive = false;
+            animationFrame = 0;
+            playBtn.disabled = false;
+            pauseBtn.disabled = true;
+            status.textContent = 'Status: Ready';
+            drawHeatmap(animationFrame);
+            if (animationId) cancelAnimationFrame(animationId);
+        };
+        metricSelect.onchange = (e) => {
+            currentMetric = e.target.value;
+            drawHeatmap(animationFrame);
+        };
+        downloadBtn.onclick = () => {
+            const url = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'dynamic_cost_heatmap.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        };
+
+        // Optional: expose update function to window for external refreshes
+        window.updateHeatmapData = function(newData) {
+            productData.x_labels = newData.x_labels || productData.x_labels;
+            productData.y_labels = newData.y_labels || productData.y_labels;
+            productData.mat_cost = newData.mat_cost || productData.mat_cost;
+            productData.mat_demand = newData.mat_demand || productData.mat_demand;
+            productData.mat_profit = newData.mat_profit || productData.mat_profit;
+            drawHeatmap(animationFrame);
+        };
+
+        // Initial draw
+        drawHeatmap(animationFrame);
+    </script>
+</body>
+</html>

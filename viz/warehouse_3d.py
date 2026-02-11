@@ -30,12 +30,13 @@ class Warehouse3DVisualizer:
         'D': 'Long-Term Storage'
     }
     
-    def __init__(self, warehouse_config: WarehouseConfig):
+    def __init__(self, warehouse_config: WarehouseConfig, rack_height: float = 8.0):
         """
         Initialize visualizer with warehouse configuration.
         
         Args:
             warehouse_config: Warehouse configuration model
+            rack_height: User-defined rack height (meters)
         """
         if not warehouse_config or not warehouse_config.dimensions:
             raise ValueError("Valid warehouse_config with dimensions is required")
@@ -44,6 +45,7 @@ class Warehouse3DVisualizer:
         self.warehouse_length = warehouse_config.warehouse_length
         self.warehouse_width = getattr(warehouse_config.dimensions, 'width', 0)
         self.warehouse_height = getattr(warehouse_config.dimensions, 'height', 0)
+        self.rack_height = float(rack_height)
         
         if self.warehouse_width <= 0 or self.warehouse_height <= 0:
             raise ValueError("Warehouse dimensions must be positive values")
@@ -286,7 +288,7 @@ class Warehouse3DVisualizer:
         ))
         
         # Add simplified rack representations
-        rack_height = min(self.warehouse_height * 0.9, 20.0)  # Taller racks
+        rack_height = self.rack_height
         rack_depth = self.config.layout.rack_depth * 1.5  # Deeper racks
         
         for i in range(aisles_to_show):
@@ -385,7 +387,7 @@ class Warehouse3DVisualizer:
     ):
         """Add detailed 3D rack representation with multiple shelves - optimized."""
         # Make racks taller
-        rack_height = height * 1.3  # 30% taller
+        rack_height = self.rack_height
         x_left = x_center - depth/2
         x_right = x_center + depth/2
         
@@ -573,7 +575,7 @@ class Warehouse3DVisualizer:
             aisles_to_show = min(num_aisles, 15)
         
         aisle_spacing = self.warehouse_width / (aisles_to_show + 1)
-        rack_height = min(self.warehouse_height * 0.9, 20.0)
+        rack_height = self.rack_height
         
         # Define shelf levels (matching rack structure)
         num_shelves = 6
