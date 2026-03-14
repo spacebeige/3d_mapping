@@ -355,11 +355,11 @@ class InteractiveWarehouseApp:
             except (TypeError, ValueError):
                 stock_level = 100
             
-            raw_daily_demand = row.get('daily_demand', 10.0)
+            raw_daily_demand = row.get('daily_demand', 10)
             try:
-                daily_demand = float(raw_daily_demand)
+                daily_demand = int(float(raw_daily_demand))  # Convert to float first, then int
             except (TypeError, ValueError):
-                daily_demand = 10.0
+                daily_demand = 10
             
             # Assign position
             position = self._assign_position(idx, num_aisles, length, width, height)
