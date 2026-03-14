@@ -357,7 +357,8 @@ class InteractiveWarehouseApp:
             
             raw_daily_demand = row.get('daily_demand', 10)
             try:
-                daily_demand = int(float(raw_daily_demand))  # Convert to float first, then int
+                # Convert to int as required by Product model (truncates decimals)
+                daily_demand = int(float(raw_daily_demand))
             except (TypeError, ValueError):
                 daily_demand = 10
             
@@ -421,7 +422,8 @@ class InteractiveWarehouseApp:
         usable_height = warehouse_height * 0.8
         shelves_per_rack = max(3, int(usable_height / self.SHELF_HEIGHT_METERS))
         
-        # Defensive checks to prevent division by zero
+        # Defensive checks to prevent division by zero (even with validated inputs)
+        # These guards protect against edge cases in calculation results
         if racks_per_aisle <= 0:
             racks_per_aisle = 1
         if shelves_per_rack <= 0:
