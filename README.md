@@ -80,7 +80,7 @@ app.display()
 ```
 
 **Features:**
-- 🎛️ **Visual controls** - Sliders and input fields for warehouse parameters
+- 🎛️ **Visual controls** - Input fields and numeric controls for warehouse parameters
 - 📁 **CSV Upload** - Drag-and-drop CSV files with product data
 - 🎨 **Instant visualization** - Click "Generate" to see results
 - 💾 **Auto-save** - Automatically saves HTML and CSV files

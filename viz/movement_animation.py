@@ -253,32 +253,22 @@ class MovementAnimator:
                     trail_sample_step = max(1, frame_idx // self.MAX_TRAIL_POINTS)
                     trail_positions = [
                         self._interpolate_position(route.waypoints, i / num_frames)
-                        for i in range(0, frame_idx, trail_sample_step)
+                        for i in range(0, frame_idx + 1, trail_sample_step)
                     ]
-                    if trail_positions:
-                        frame_data.append(go.Scatter3d(
-                            x=[p.x for p in trail_positions],
-                            y=[p.y for p in trail_positions],
-                            z=[p.z for p in trail_positions],
-                            mode='lines',
-                            line=dict(
-                                color=cost_color,
-                                width=3,
-                                dash='dot'
-                            ),
-                            name=f'Trail-{product.item_id}',
-                            showlegend=False,
-                            hoverinfo='skip'
-                        ))
-                    else:
-                        frame_data.append(go.Scatter3d(
-                            x=[], y=[], z=[],
-                            mode='lines',
-                            line=dict(color=cost_color, width=3, dash='dot'),
-                            name=f'Trail-{product.item_id}',
-                            showlegend=False,
-                            hoverinfo='skip'
-                        ))
+                    frame_data.append(go.Scatter3d(
+                        x=[p.x for p in trail_positions],
+                        y=[p.y for p in trail_positions],
+                        z=[p.z for p in trail_positions],
+                        mode='lines',
+                        line=dict(
+                            color=cost_color,
+                            width=3,
+                            dash='dot'
+                        ),
+                        name=f'Trail-{product.item_id}',
+                        showlegend=False,
+                        hoverinfo='skip'
+                    ))
                 else:
                     frame_data.append(go.Scatter3d(
                         x=[], y=[], z=[],
@@ -357,7 +347,7 @@ class MovementAnimator:
                 trail_sample_step = max(1, frame_idx // self.MAX_TRAIL_POINTS)
                 trail_positions = [
                     self._interpolate_position(route.waypoints, i / num_frames)
-                    for i in range(0, frame_idx, trail_sample_step)
+                    for i in range(0, frame_idx + 1, trail_sample_step)
                 ]
                 
                 if trail_positions:

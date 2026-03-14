@@ -13,7 +13,6 @@ Perfect for Jupyter notebooks, Google Colab, and VS Code!
 
 import sys
 from pathlib import Path
-from typing import Optional
 import io
 
 # Add parent directory to path
@@ -21,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 try:
     import ipywidgets as widgets
-    from IPython.display import display, HTML, clear_output
+    from IPython.display import display, clear_output
     WIDGETS_AVAILABLE = True
 except ImportError:
     print("❌ ipywidgets or IPython not available. Please install with:")
@@ -199,11 +198,30 @@ class InteractiveWarehouseApp:
                 self.generate_button.disabled = True
                 
                 # Get warehouse parameters
-                name = self.warehouse_name.value
+                name = (self.warehouse_name.value or "").strip()
                 length = self.warehouse_length.value
                 width = self.warehouse_width.value
                 height = self.warehouse_height.value
                 num_aisles = self.num_aisles.value
+                
+                # Validate warehouse parameters to guard against invalid programmatic values
+                invalid_reasons = []
+                if not name:
+                    invalid_reasons.append("warehouse name cannot be empty")
+                if length is None or length <= 0:
+                    invalid_reasons.append("length must be a positive number")
+                if width is None or width <= 0:
+                    invalid_reasons.append("width must be a positive number")
+                if height is None or height <= 0:
+                    invalid_reasons.append("height must be a positive number")
+                if num_aisles is None or num_aisles < 1:
+                    invalid_reasons.append("number of aisles must be at least 1")
+
+                if invalid_reasons:
+                    error_msg = "Invalid warehouse parameters: " + "; ".join(invalid_reasons)
+                    self.progress.value = f'<p style="color: red;">❌ {error_msg}</p>'
+                    print(f"❌ {error_msg}")
+                    return
                 
                 # Create warehouse
                 print("=" * 80)
@@ -329,8 +347,19 @@ class InteractiveWarehouseApp:
             item_id = row.get('item_id', f'PROD{idx+1:04d}')
             category = row.get('category', 'general')
             description = row.get('description', f'Product {idx+1}')
-            stock_level = int(row.get('stock_level', 100))
-            daily_demand = float(row.get('daily_demand', 10.0))
+            
+            # Safely parse numeric fields with per-row fallbacks
+            raw_stock_level = row.get('stock_level', 100)
+            try:
+                stock_level = int(raw_stock_level)
+            except (TypeError, ValueError):
+                stock_level = 100
+            
+            raw_daily_demand = row.get('daily_demand', 10.0)
+            try:
+                daily_demand = float(raw_daily_demand)
+            except (TypeError, ValueError):
+                daily_demand = 10.0
             
             # Assign position
             position = self._assign_position(idx, num_aisles, length, width, height)
@@ -391,6 +420,14 @@ class InteractiveWarehouseApp:
         racks_per_aisle = max(10, int(warehouse_length / self.RACK_DEPTH_METERS))
         usable_height = warehouse_height * 0.8
         shelves_per_rack = max(3, int(usable_height / self.SHELF_HEIGHT_METERS))
+        
+        # Defensive checks to prevent division by zero
+        if racks_per_aisle <= 0:
+            racks_per_aisle = 1
+        if shelves_per_rack <= 0:
+            shelves_per_rack = 1
+        if total_aisles <= 0:
+            total_aisles = 1
         
         products_per_aisle = racks_per_aisle * shelves_per_rack
         
